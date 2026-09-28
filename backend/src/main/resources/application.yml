@@ -1,0 +1,54 @@
+server:
+  port: ${APP_PORT:8088}
+
+spring:
+  application:
+    name: ai-tutor-backend
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:ai_tutor}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:root}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 3000ms
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 100MB
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+
+sa-token:
+  token-name: Authorization
+  timeout: 86400
+  active-timeout: -1
+  is-concurrent: true
+  is-share: false
+  token-style: uuid
+  is-log: false
+
+ai:
+  base-url: ${AI_BASE_URL:https://api.deepseek.com}
+  api-key: ${AI_API_KEY:sk-your-deepseek-api-key-here}
+  model: ${AI_MODEL:deepseek-chat}
+  vision-model: ${AI_VISION_MODEL:deepseek-vl}
+
+app:
+  upload-dir: ${UPLOAD_DIR:./uploads}
+  teacher-username: ${TEACHER_USERNAME:teacher}
+  teacher-password: ${TEACHER_PASSWORD:teacher123}
+
+logging:
+  level:
+    com.aitutor: info
