@@ -36,7 +36,7 @@
           <div class="pack-no">{{ pack.lessonNo }}</div>
           <div class="pack-title">{{ pack.title }}</div>
           <div class="pack-chapter">{{ pack.chapter }}</div>
-          <div class="pack-go">进入学习 →</div>
+          <div class="pack-go">进入学习 <span class="arrow">&gt;</span></div>
         </div>
       </div>
     </main>
@@ -125,5 +125,7 @@ async function changePwd() {
 .pack-no { margin-top: 8px; font-size: 12px; color: #4F46E5; font-weight: 600; }
 .pack-title { font-size: 16px; font-weight: 600; color: #1F2937; margin-top: 2px; }
 .pack-chapter { font-size: 13px; color: #94A3B8; margin-top: 4px; }
-.pack-go { margin-top: 14px; font-size: 13px; color: #06B6D4; font-weight: 600; }
+.pack-go { margin-top: 14px; font-size: 13px; color: #06B6D4; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+.pack-go .arrow { font-weight: 700; font-size: 16px; transition: transform 0.2s; }
+.pack-card:hover .pack-go .arrow { transform: translateX(4px); }
 </style>

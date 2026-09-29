@@ -1,7 +1,7 @@
 <template>
   <div class="review-page">
     <header class="topbar">
-      <el-button text @click="$router.back()">← 返回</el-button>
+      <el-button text @click="$router.back()"><span class="arrow">&lt;</span> 返回</el-button>
       <span class="title">🤝 挑战互评</span>
       <span class="user">{{ userStore.realName || userStore.username }}</span>
     </header>
@@ -20,7 +20,7 @@
         <div v-if="challenges.length === 0" class="empty">该课次暂无挑战提交</div>
         <div v-for="c in challenges" :key="c.id" class="challenge-item">
           <div class="challenge-info">
-            <div class="challenge-user">👤 同学 #{{ c.userId }} 的挑战</div>
+            <div class="challenge-user">👤 {{ c.userName || ('同学 #' + c.userId) }} 的挑战</div>
             <div class="challenge-conclusion">{{ c.conclusion || '（无文字结论）' }}</div>
             <div class="challenge-params" v-if="c.paramsJson">参数：{{ c.paramsJson }}</div>
           </div>
@@ -123,6 +123,7 @@ async function submit() {
 <style scoped>
 .review-page { min-height: 100vh; }
 .topbar { display: flex; align-items: center; gap: 16px; padding: 12px 24px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+.topbar .arrow { font-weight: 700; font-size: 15px; }
 .title { font-weight: 700; }
 .user { margin-left: auto; color: #64748B; }
 .content { max-width: 900px; margin: 0 auto; padding: 24px; }

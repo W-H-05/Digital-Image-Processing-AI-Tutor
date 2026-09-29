@@ -74,6 +74,7 @@
         <div v-for="(e, i) in errors" :key="i" class="conf-item">
           <span class="conf-rank">{{ i + 1 }}</span>
           <span class="conf-name">{{ e.type }}</span>
+          <span v-if="e.source" class="err-source">{{ e.source }}</span>
           <div class="conf-bar"><div class="conf-fill err" :style="{ width: errWidth(e) }"></div></div>
           <span class="conf-count">{{ e.count }}次 / {{ e.studentCount }}人</span>
         </div>
@@ -306,6 +307,7 @@ function formatTime(t) {
 .conf-item { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .conf-rank { width: 22px; height: 22px; border-radius: 50%; background: #EEF2FF; color: #4F46E5; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
 .conf-name { width: 90px; font-size: 13px; color: #374151; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.err-source { font-size: 11px; color: #94A3B8; background: #F1F5F9; padding: 1px 6px; border-radius: 8px; flex-shrink: 0; }
 .conf-bar { flex: 1; height: 10px; background: #F1F5F9; border-radius: 5px; overflow: hidden; }
 .conf-fill { height: 100%; background: linear-gradient(90deg, #F59E0B, #EF4444); border-radius: 5px; transition: width 0.5s; }
 .conf-count { font-size: 12px; color: #94A3B8; white-space: nowrap; }

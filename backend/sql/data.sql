@@ -1,95 +1,99 @@
--- ============================================
--- 基础数据初始化
--- 注意：教师/学生账号由应用启动时 DataInitializer 用 BCrypt 编码创建
--- ============================================
-USE ai_tutor;
 
--- 课程
-INSERT INTO `course` (`id`, `course_name`, `description`, `teacher_id`) VALUES
-(1, '数字图像处理', '《数字图像处理》课程，涵盖图像基础、空间域处理、频域处理、形态学、分割、特征提取、视频处理等内容。', NULL);
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!50503 SET NAMES utf8mb4 */;
+/*!40103 SET @OLD_TIME_ZONE=@@TIME_ZONE */;
+/*!40103 SET TIME_ZONE='+00:00' */;
+/*!40014 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0 */;
+/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
+/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
+/*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
--- 课次包（第1-24次课 + 实验1-4）
-INSERT INTO `lesson_pack` (`id`, `course_id`, `lesson_no`, `title`, `chapter`, `status`, `objectives`, `key_points`, `difficult_points`) VALUES
-(1, 1, '第1次课', '图像基础与灰度直方图', '图像处理绪论', 'PUBLISHED', '了解数字图像基本概念；掌握灰度直方图及其意义。', '采样、量化、灰度直方图、对比度', '采样量化与分辨率的关系'),
-(2, 1, '第2次课', '点运算与直方图均衡化', '空间域增强', 'PUBLISHED', '掌握直方图均衡化、直方图规定化原理。', '直方图均衡化、对比度拉伸、γ校正', '均衡化的数学推导'),
-(3, 1, '第3次课', '空间滤波：平滑与锐化', '空间域增强', 'PUBLISHED', '理解卷积；掌握均值/高斯/中值滤波与锐化算子。', '卷积、高斯滤波、中值滤波、Sobel、拉普拉斯', '卷积边界处理与模板归一化'),
-(4, 1, '第4次课', '傅里叶变换与频域滤波', '频域处理', 'PUBLISHED', '理解二维 DFT；掌握低通/高通滤波。', 'DFT、频谱、理想/高斯低通高通', '频谱搬移与频域滤波流程'),
-(5, 1, '第5次课', '形态学处理', '形态学', 'PUBLISHED', '掌握腐蚀、膨胀、开闭运算及其应用。', '腐蚀、膨胀、开运算、闭运算、结构元素', '开闭运算的先后顺序与效果'),
-(6, 1, '第6次课', '图像分割：阈值与边缘', '分割', 'PUBLISHED', '掌握 Otsu、Canny 边缘检测。', 'Otsu、Canny、区域生长', 'Canny 双阈值与非极大值抑制'),
-(7, 1, '第7次课', '特征提取与描述', '特征', 'PUBLISHED', '理解 LBP、SIFT 特征。', 'LBP、SIFT、HOG', 'SIFT 尺度空间与关键点定位'),
-(8, 1, '第8次课', '视频处理与目标检测', '视频处理', 'PUBLISHED', '了解帧差法、背景建模 MOG2。', '帧差法、MOG2、光流', '背景建模的更新策略'),
-(9, 1, '实验1', '图像基本操作实验', '实验', 'PUBLISHED', 'OpenCV 读写图像、颜色空间转换。', 'imread、cvtColor、BGR/RGB', 'BGR 与 RGB 通道顺序'),
-(10, 1, '实验2', '直方图与滤波实验', '实验', 'PUBLISHED', '绘制直方图、实现滤波对比。', 'calcHist、GaussianBlur、medianBlur', '核大小选择'),
-(11, 1, '实验3', '形态学与分割实验', '实验', 'PUBLISHED', '形态学操作与 Otsu/Canny 分割。', 'morphologyEx、threshold、Canny', '结构元素形状选择'),
-(12, 1, '实验4', '特征提取实验', '实验', 'PUBLISHED', 'LBP/SIFT 特征提取与匹配。', 'SIFT、LBP、BFMatcher', '特征点数量与匹配阈值');
+LOCK TABLES `course` WRITE;
+/*!40000 ALTER TABLE `course` DISABLE KEYS */;
+INSERT INTO `course` (`id`, `course_name`, `description`, `teacher_id`, `create_time`) VALUES (1,'数字图像处理','《数字图像处理》课程，涵盖图像基础、空间域处理、频域处理、形态学、分割、特征提取、视频处理等内容。',NULL,'2026-09-24 12:51:18');
+/*!40000 ALTER TABLE `course` ENABLE KEYS */;
+UNLOCK TABLES;
 
--- 知识点
-INSERT INTO `knowledge_point` (`id`, `lesson_pack_id`, `name`, `description`, `keywords`) VALUES
-(1, 1, '采样与量化', '连续图像离散化为像素矩阵的过程；采样决定空间分辨率，量化决定灰度分辨率。', '采样,量化,分辨率,像素'),
-(2, 1, '灰度直方图', '统计图像各灰度级出现频率，反映图像亮度分布与对比度。', '直方图,灰度级,对比度,频率'),
-(3, 2, '直方图均衡化', '通过灰度映射使直方图近似均匀分布，增强对比度。', '均衡化,累计分布,CDF,对比度'),
-(4, 3, '空间滤波', '用模板与图像做卷积实现平滑或锐化。', '卷积,模板,核,平滑,锐化'),
-(5, 4, '频域滤波', '对图像做 DFT 后在频域乘以滤波器再逆变换。', 'DFT,频谱,低通,高通,FFT'),
-(6, 5, '形态学', '基于结构元素的腐蚀膨胀及开闭运算。', '腐蚀,膨胀,开运算,闭运算,结构元素'),
-(7, 6, 'Otsu 阈值分割', '最大化类间方差的自动阈值选取。', 'Otsu,阈值,类间方差,二值化'),
-(8, 6, 'Canny 边缘检测', '高斯平滑+梯度+非极大值抑制+双阈值+滞后连接。', 'Canny,边缘,梯度,双阈值'),
-(9, 7, 'SIFT 特征', '尺度不变特征变换，检测并描述关键点。', 'SIFT,关键点,尺度空间,描述子'),
-(10, 8, '背景建模', '用 MOG2 等方法估计背景实现运动目标检测。', 'MOG2,背景建模,帧差,运动检测');
+LOCK TABLES `lesson_pack` WRITE;
+/*!40000 ALTER TABLE `lesson_pack` DISABLE KEYS */;
+INSERT INTO `lesson_pack` (`id`, `course_id`, `lesson_no`, `hours`, `title`, `chapter`, `objectives`, `content_summary`, `key_points`, `difficult_points`, `ideological_notes`, `status`, `create_time`, `update_time`) VALUES (1,1,'第1次课','2学时','图像基础与灰度直方图','图像处理绪论','1. 理解数字图像的基本概念，掌握像素、分辨率、灰度级等术语。\n2. 掌握采样与量化的概念，理解空间分辨率与灰度分辨率的关系。\n3. 掌握灰度直方图的定义、性质及其物理意义。\n4. 能用 OpenCV 读取图像并计算、绘制灰度直方图。','本次课是数字图像处理课程的绪论课，讲授数字图像的基本概念（像素、采样、量化、分辨率），并重点讲解灰度直方图的定义、性质与应用，为后续图像增强、分割等章节奠定基础。','采样与量化、空间分辨率与灰度分辨率、灰度直方图的定义与性质、直方图与图像的关系','采样量化与分辨率/清晰度的辨析、直方图与图像的一对多关系、直方图无法反映像素空间位置','结合图像数字化过程，引导学生理解\"连续到离散\"的辩证思维；通过直方图反映整体信息、忽略细节位置的特点，体会从全局视角分析问题的方法论。','PUBLISHED','2026-09-24 12:51:18','2026-09-25 13:49:49'),(2,1,'第2次课','2学时','点运算与直方图均衡化','空间域增强','掌握直方图均衡化、直方图规定化原理。',NULL,'直方图均衡化、对比度拉伸、γ校正','均衡化的数学推导',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 15:37:55'),(3,1,'第3次课','2学时','空间滤波：平滑与锐化','空间域增强','理解卷积；掌握均值/高斯/中值滤波与锐化算子。',NULL,'卷积、高斯滤波、中值滤波、Sobel、拉普拉斯','卷积边界处理与模板归一化',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 15:37:55'),(4,1,'第4次课','2学时','傅里叶变换与频域滤波','频域处理','理解二维 DFT；掌握低通/高通滤波。',NULL,'DFT、频谱、理想/高斯低通高通','频谱搬移与频域滤波流程',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 15:37:56'),(5,1,'第5次课','2学时','形态学处理','形态学','掌握腐蚀、膨胀、开闭运算及其应用。',NULL,'腐蚀、膨胀、开运算、闭运算、结构元素','开闭运算的先后顺序与效果',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 15:37:56'),(6,1,'第6次课','2学时','图像分割：阈值与边缘','分割','掌握 Otsu、Canny 边缘检测。',NULL,'Otsu、Canny、区域生长','Canny 双阈值与非极大值抑制',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 15:37:56'),(7,1,'第7次课','2学时','特征提取与描述','特征','理解 LBP、SIFT 特征。',NULL,'LBP、SIFT、HOG','SIFT 尺度空间与关键点定位',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 15:37:57'),(8,1,'第8次课','2学时','视频处理与目标检测','视频处理','了解帧差法、背景建模 MOG2。',NULL,'帧差法、MOG2、光流','背景建模的更新策略',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 15:37:57'),(9,1,'实验1',NULL,'图像基本操作实验','实验','OpenCV 读写图像、颜色空间转换。',NULL,'imread、cvtColor、BGR/RGB','BGR 与 RGB 通道顺序',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 12:51:18'),(10,1,'实验2',NULL,'直方图与滤波实验','实验','绘制直方图、实现滤波对比。',NULL,'calcHist、GaussianBlur、medianBlur','核大小选择',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 12:51:18'),(11,1,'实验3',NULL,'形态学与分割实验','实验','形态学操作与 Otsu/Canny 分割。',NULL,'morphologyEx、threshold、Canny','结构元素形状选择',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 12:51:18'),(12,1,'实验4',NULL,'特征提取实验','实验','LBP/SIFT 特征提取与匹配。',NULL,'SIFT、LBP、BFMatcher','特征点数量与匹配阈值',NULL,'PUBLISHED','2026-09-24 12:51:18','2026-09-24 12:51:18');
+/*!40000 ALTER TABLE `lesson_pack` ENABLE KEYS */;
+UNLOCK TABLES;
 
--- 交互课件
-INSERT INTO `courseware` (`id`, `lesson_pack_id`, `name`, `type`, `config_json`) VALUES
-(1, 1, '灰度直方图实验室', '直方图', '{"min":0,"max":255,"checkpoint":"观察不同亮度图像的直方图形态"}'),
-(2, 2, '直方图均衡化实验室', '均衡化', '{"gamma":[0.3,3.0],"checkpoint":"拖动γ观察对比度变化"}'),
-(3, 3, '低通滤波实验室', '低通', '{"kernel":[3,5,7,9,11],"checkpoint":"比较均值与高斯滤波的模糊效果"}'),
-(4, 4, '频域滤波实验室', '频域', '{"radius":[10,200],"checkpoint":"调整截止频率观察高低通效果"}'),
-(5, 5, '形态学实验室', '形态学', '{"op":["腐蚀","膨胀","开运算","闭运算"],"kernelSize":[3,5,7],"checkpoint":"对比开闭运算对噪声的抑制"}'),
-(6, 6, 'Otsu 分割实验室', '分割', '{"threshold":[0,255],"checkpoint":"对比手动阈值与Otsu自动阈值"}'),
-(7, 7, 'Canny 边缘实验室', '边缘', '{"low":[0,255],"high":[0,255],"checkpoint":"调整双阈值观察边缘连续性"}'),
-(8, 8, '视频目标检测实验室', '视频', '{"method":["帧差法","MOG2"],"checkpoint":"观察运动目标的检测框"}');
+LOCK TABLES `knowledge_point` WRITE;
+/*!40000 ALTER TABLE `knowledge_point` DISABLE KEYS */;
+INSERT INTO `knowledge_point` (`id`, `lesson_pack_id`, `name`, `description`, `keywords`, `create_time`) VALUES (3,2,'直方图均衡化','通过灰度映射使直方图近似均匀分布，增强对比度。','均衡化,累计分布,CDF,对比度','2026-09-24 12:51:18'),(4,3,'空间滤波','用模板与图像做卷积实现平滑或锐化。','卷积,模板,核,平滑,锐化','2026-09-24 12:51:18'),(5,4,'频域滤波','对图像做 DFT 后在频域乘以滤波器再逆变换。','DFT,频谱,低通,高通,FFT','2026-09-24 12:51:18'),(6,5,'形态学','基于结构元素的腐蚀膨胀及开闭运算。','腐蚀,膨胀,开运算,闭运算,结构元素','2026-09-24 12:51:18'),(7,6,'Otsu 阈值分割','最大化类间方差的自动阈值选取。','Otsu,阈值,类间方差,二值化','2026-09-24 12:51:18'),(8,6,'Canny 边缘检测','高斯平滑+梯度+非极大值抑制+双阈值+滞后连接。','Canny,边缘,梯度,双阈值','2026-09-24 12:51:18'),(9,7,'SIFT 特征','尺度不变特征变换，检测并描述关键点。','SIFT,关键点,尺度空间,描述子','2026-09-24 12:51:18'),(10,8,'背景建模','用 MOG2 等方法估计背景实现运动目标检测。','MOG2,背景建模,帧差,运动检测','2026-09-24 12:51:18'),(11,1,'数字图像基本概念','数字图像是连续图像 f(x,y) 经采样、量化得到的离散像素矩阵，用 M×N 矩阵表示。像素是图像的最小单元，每个像素存储一个灰度值（灰度图像）或一组分量（彩色图像）。图像分辨率=像素总数，数据量=M×N×k（k为每像素比特数）。','数字图像,像素,矩阵,分辨率,数据量','2026-09-25 13:49:49'),(12,1,'采样','采样是对空间坐标(x,y)的离散化，决定图像的空间分辨率。采样间隔越小，采样点越密，空间分辨率越高，图像越精细，但数据量越大。欠采样会产生混叠现象（马赛克/锯齿）。','采样,空间分辨率,离散化,混叠,马赛克','2026-09-25 13:49:49'),(13,1,'量化','量化是对灰度值的离散化，决定图像的灰度级分辨率。将连续的灰度值映射到有限个离散等级，8位量化得到256个灰度级（0~255）。量化级数不足会产生伪轮廓。','量化,灰度级,灰度分辨率,伪轮廓,256','2026-09-25 13:49:49'),(14,1,'灰度直方图','灰度直方图是图像灰度级的统计函数：h(rk)=nk，归一化 p(rk)=nk/n，表示灰度级 rk 出现的频率。横轴为灰度级0~255，纵轴为出现频率/个数。它反映图像的亮度分布与对比度，但不反映像素空间位置。','灰度直方图,频率,亮度分布,对比度,统计','2026-09-25 13:49:49'),(15,1,'OpenCV 图像基础','OpenCV 是计算机视觉基础库：cv2.imread() 读取图像（注意返回 BGR 顺序），cv2.imshow() 显示，cv2.cvtColor() 颜色转换，cv2.calcHist() 计算直方图。灰度图 shape 为 (H,W)，彩色图为 (H,W,3)。','OpenCV,imread,cvtColor,calcHist,BGR','2026-09-25 13:49:49');
+/*!40000 ALTER TABLE `knowledge_point` ENABLE KEYS */;
+UNLOCK TABLES;
 
--- 示例材料（第1次课）
-INSERT INTO `lesson_material` (`lesson_pack_id`, `material_type`, `title`, `description`, `group_name`, `is_open_to_student`, `sort_index`) VALUES
-(1, '教案', '第1次课教案', '教学目标、过程、思政、反思（默认不开放）', '课前预习', 0, 0),
-(1, '重难点', '采样与量化·重点难点', '采样决定空间分辨率，量化决定灰度分辨率；易混淆分辨率与清晰度。', '课前预习', 1, 1),
-(1, '知识点', '灰度直方图讲解', '直方图反映图像亮度分布；暗图直方图偏左，亮图偏右，低对比度图直方图集中。', '课中讲解', 1, 2),
-(1, '作业', '第1次课作业', '编写 Python 程序统计并绘制给定图像的灰度直方图。', '课后作业', 1, 3);
+LOCK TABLES `courseware` WRITE;
+/*!40000 ALTER TABLE `courseware` DISABLE KEYS */;
+INSERT INTO `courseware` (`id`, `lesson_pack_id`, `name`, `type`, `config_json`, `resource_path`, `create_time`, `update_time`) VALUES (1,1,'灰度直方图实验室','直方图','{\"min\":0,\"max\":255,\"checkpoint\":\"观察不同亮度图像的直方图形态\"}',NULL,'2026-09-24 12:51:18','2026-09-24 12:51:18'),(2,2,'直方图均衡化实验室','均衡化','{\"gamma\":[0.3,3.0],\"checkpoint\":\"拖动γ观察对比度变化\"}',NULL,'2026-09-24 12:51:18','2026-09-24 12:51:18'),(3,3,'低通滤波实验室','低通','{\"kernel\":[3,5,7,9,11],\"checkpoint\":\"比较均值与高斯滤波的模糊效果\"}',NULL,'2026-09-24 12:51:18','2026-09-24 12:51:18'),(4,4,'频域滤波实验室','频域','{\"radius\":[10,200],\"checkpoint\":\"调整截止频率观察高低通效果\"}',NULL,'2026-09-24 12:51:18','2026-09-24 12:51:18'),(5,5,'形态学实验室','形态学','{\"op\":[\"腐蚀\",\"膨胀\",\"开运算\",\"闭运算\"],\"kernelSize\":[3,5,7],\"checkpoint\":\"对比开闭运算对噪声的抑制\"}',NULL,'2026-09-24 12:51:18','2026-09-24 12:51:18'),(6,6,'Otsu 分割实验室','分割','{\"threshold\":[0,255],\"checkpoint\":\"对比手动阈值与Otsu自动阈值\"}',NULL,'2026-09-24 12:51:18','2026-09-24 12:51:18'),(7,7,'Canny 边缘实验室','边缘','{\"low\":[0,255],\"high\":[0,255],\"checkpoint\":\"调整双阈值观察边缘连续性\"}',NULL,'2026-09-24 12:51:18','2026-09-24 12:51:18'),(8,8,'视频目标检测实验室','视频','{\"method\":[\"帧差法\",\"MOG2\"],\"checkpoint\":\"观察运动目标的检测框\"}',NULL,'2026-09-24 12:51:18','2026-09-24 12:51:18');
+/*!40000 ALTER TABLE `courseware` ENABLE KEYS */;
+UNLOCK TABLES;
 
--- RAG 知识库：课程核心概念
-INSERT INTO `rag_document` (`title`, `category`, `content`, `chunk_index`) VALUES
-('灰度直方图概念', '教材', '灰度直方图是图像灰度级的统计函数，横轴为灰度级(0~255)，纵轴为该灰度级出现的像素个数或频率。它反映图像的亮度分布和对比度：偏暗的图像直方图集中在低灰度区，偏亮的集中在高灰度区，低对比度图像直方图集中在一个窄区间，高对比度图像直方图分布较均匀。', 0),
-('直方图均衡化原理', '教材', '直方图均衡化通过灰度变换函数 s=T(r) 将原图灰度级映射，使输出图像直方图近似均匀分布。T(r) 取输入灰度级的累计分布函数(CDF)。其作用是自动增强图像对比度，尤其适用于背景与前景都较亮或较暗的图像。局限是可能放大噪声、丢失灰度层次。', 0),
-('采样与量化', '教材', '采样是对空间坐标的离散化，决定图像的空间分辨率（像素数）；量化是对灰度值的离散化，决定灰度级分辨率（如8位=256级）。采样间隔越小、量化级数越多，图像越精细，但数据量越大。欠采样会产生混叠（马赛克/锯齿），欠量化会产生伪轮廓。', 0),
-('傅里叶变换与频谱', '教材', '二维离散傅里叶变换(DFT)将图像从空间域变换到频率域。频谱中心低频对应图像中变化平缓的区域（大面积背景），高频对应边缘、纹理和噪声等剧烈变化。频率域滤波即对频谱乘以滤波器函数：低通滤波保留低频、模糊图像；高通滤波保留高频、突出边缘。', 0),
-('形态学腐蚀与膨胀', '教材', '腐蚀使目标边界向内收缩，可消除小于结构元素的噪声和细连接；膨胀使目标边界向外扩张，可填补空洞、连接断裂。开运算是先腐蚀后膨胀，平滑轮廓并消除小物体；闭运算是先膨胀后腐蚀，填充小孔并连接邻近物体。', 0),
-('Otsu 阈值分割', '教材', 'Otsu 方法通过最大化前景与背景的类间方差来自动选取最佳阈值。它遍历所有灰度级，计算每个阈值对应的类间方差，取方差最大者为阈值。适用于灰度直方图呈双峰分布的图像，计算简单且稳定，是最常用的自动全局阈值方法。', 0),
-('Canny 边缘检测', '教材', 'Canny 算法步骤：1) 高斯滤波平滑；2) 计算梯度幅值和方向；3) 非极大值抑制细化边缘；4) 双阈值(高低阈值)检测强弱边缘；5) 滞后连接弱边缘到强边缘。双阈值中高于高阈值的为强边缘，低于低阈值的舍弃，介于之间的若与强边缘连接则保留。', 0),
-('SIFT 特征', '教材', 'SIFT(尺度不变特征变换)通过构建高斯差分金字塔在不同尺度空间检测极值点作为关键点，为每个关键点计算梯度方向直方图生成128维描述子，具有尺度、旋转、光照不变性，广泛用于图像匹配与拼接。', 0),
-('LBP 纹理特征', '教材', '局部二值模式(LBP)以中心像素为阈值，将邻域像素与中心比较，大于为1否则为0，得到二进制编码作为该点纹理描述。LBP 对灰度单调变化鲁棒、计算快，广泛用于纹理分类和人脸识别。', 0),
-('MOG2 背景建模', '教材', 'MOG2 使用混合高斯模型对每个像素建模，动态更新均值和方差，将长时间稳定的像素判为背景，从而实现运动目标检测。相比帧差法，它更能适应光照变化和缓慢移动的背景，是 OpenCV 中 createBackgroundSubtractorMOG2 的实现。', 0);
+LOCK TABLES `lesson_material` WRITE;
+/*!40000 ALTER TABLE `lesson_material` DISABLE KEYS */;
+INSERT INTO `lesson_material` (`id`, `lesson_pack_id`, `material_type`, `title`, `description`, `file_path`, `file_type`, `file_size`, `sort_index`, `group_name`, `is_open_to_student`, `allow_download`, `version`, `status`, `create_time`, `update_time`) VALUES (1,1,'教案','第1次课教案','教学目标、过程、思政、反思（默认不开放）',NULL,NULL,0,0,'课前预习',0,1,1,'ACTIVE','2026-09-24 12:51:18','2026-09-24 15:16:00'),(2,1,'重难点','采样与量化·重点难点','【重点】\n1. 采样与量化：采样是对空间坐标的离散化，决定空间分辨率；量化是对灰度值的离散化，决定灰度级分辨率。8位图像=256个灰度级。\n2. 灰度直方图定义：h(rk)=nk（或归一化 p(rk)=nk/n），横轴灰度级0~255，纵轴出现频率，反映图像亮度分布与对比度。\n\n【难点】\n1. 分辨率与清晰度辨析：空间分辨率高≠图像清晰，欠采样产生马赛克/混叠，欠量化产生伪轮廓。\n2. 直方图与图像是一对多关系：直方图相同不代表图像相同；直方图丢失了像素的空间位置信息。\n3. 直方图形态规律：暗图直方图偏左、亮图偏右、低对比度图集中在窄区间、高对比度图分布均匀。\n4. 数据量计算：M×N×k，如 512×512 的 8 位灰度图为 512×512×8=2Mbit=256KB。',NULL,NULL,0,0,'课前预习',1,1,3,'ACTIVE','2026-09-24 12:51:18','2026-09-25 13:49:49'),(3,1,'知识点','灰度直方图详细讲解','一、数字图像基础\n· 数字图像：连续图像 f(x,y) 采样+量化 → M×N 像素矩阵。\n· 像素：图像最小单元，灰度图每像素一个灰度值(0~255)，彩色图 RGB 三通道。\n· 数据量 = M×N×k（k 为每像素比特数）。\n\n二、采样与量化\n· 采样：空间坐标离散化 → 空间分辨率。间隔越小越精细，欠采样产生混叠/马赛克。\n· 量化：灰度值离散化 → 灰度级分辨率。8bit=256级，1bit=二值图，欠量化产生伪轮廓。\n· 关系辨析：采样决定\"有多少个点\"，量化决定\"每个点分多少级\"。\n\n三、灰度直方图\n· 定义：h(rk)=nk，归一化 p(rk)=nk/n。\n· 意义：反映亮度分布与对比度，是阈值选取、图像增强的依据。\n· 性质：① 不反映像素空间位置；② 直方图与图像是多对一；③ 暗图偏左、亮图偏右、低对比度集中。\n\n四、OpenCV 实操\n· 读取灰度图：img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)\n· 计算直方图：hist = cv2.calcHist([img], [0], None, [256], [0, 256])\n· 注意：OpenCV 读取彩色图为 BGR 顺序，用 matplotlib 显示需转 RGB。',NULL,NULL,0,1,'课中讲解',1,1,1,'ACTIVE','2026-09-24 12:51:18','2026-09-25 13:49:49'),(4,1,'作业','第1次课作业说明','第一次课后作业（共 10 题，满分 100 分）：\n1. 选择题 6 题（60 分）：灰度取值范围、采样量化关系、灰度级数、直方图性质、欠采样现象。\n2. 填空题 3 题（30 分）：图像数据量计算、直方图横轴、量化对象。\n3. 代码题 1 题（10 分）：OpenCV 计算绘制灰度直方图。\n\n选择题、填空题提交后自动判分，代码题由教师评阅。请在\"课后作业\"区在线作答。',NULL,NULL,0,2,'课后作业',1,1,1,'ACTIVE','2026-09-24 12:51:18','2026-09-25 13:49:49'),(6,1,'其他','数字图像处理1.pptx',NULL,'/uploads/20260924/d40ee69f8a1e44769993635bbfffe7a8.pptx','pptx',35392368,0,'',1,1,1,'ACTIVE','2026-09-24 15:00:36','2026-09-24 15:00:36'),(7,1,'其他','Sobel梯度方向可视化.html',NULL,'/uploads/20260929/88d21c120ded4fe7a3d7e69fb0b19994.html','html',25731,0,'',1,1,1,'ACTIVE','2026-09-29 19:07:12','2026-09-29 19:07:12'),(8,1,'交互课件','卷积与边缘检测.html',NULL,'/uploads/20260929/41a60f35ca6147388681bbe60b580335.html','html',47397,0,'',1,1,1,'ACTIVE','2026-09-29 19:09:11','2026-09-29 19:09:11'),(9,1,'其他','拉普拉斯过零点演示.html',NULL,'/uploads/20260929/99e0b8f16b4946079b18bd9da109fd38.html','html',35013,0,'',1,1,1,'ACTIVE','2026-09-29 19:09:17','2026-09-29 19:09:17'),(10,1,'其他','中值滤波全图扫描.html',NULL,'/uploads/20260929/bc717d189ade4d13b95e836bac692128.html','html',38305,0,'',1,1,1,'ACTIVE','2026-09-29 19:09:26','2026-09-29 19:09:26'),(11,1,'其他','中值滤波排序可视化.html',NULL,'/uploads/20260929/8514a0cdf6fe432d9470031de2b9de84.html','html',37358,0,'',1,1,1,'ACTIVE','2026-09-29 19:09:31','2026-09-29 19:09:31');
+/*!40000 ALTER TABLE `lesson_material` ENABLE KEYS */;
+UNLOCK TABLES;
 
--- RAG 知识库：OpenCV 函数
-INSERT INTO `rag_document` (`title`, `category`, `content`, `chunk_index`) VALUES
-('cv2.imread', 'OpenCV', 'cv2.imread(path, flags) 读取图像，flags 常用 cv2.IMREAD_COLOR(默认，彩色3通道BGR)、cv2.IMREAD_GRAYSCALE(灰度)、cv2.IMREAD_UNCHANGED(含alpha)。注意：OpenCV 读取的是 BGR 顺序而非 RGB；路径含中文或找不到文件会返回 None，需判空。', 0),
-('cv2.cvtColor', 'OpenCV', 'cv2.cvtColor(src, code) 颜色空间转换，常用 code：cv2.COLOR_BGR2RGB、cv2.COLOR_BGR2GRAY、cv2.COLOR_BGR2HSV。将 OpenCV 的 BGR 图像转 RGB 用于 matplotlib 显示时必须用 BGR2RGB，否则颜色偏蓝。', 0),
-('cv2.GaussianBlur', 'OpenCV', 'cv2.GaussianBlur(src, ksize, sigmaX) 高斯滤波，ksize 为核大小(奇数如(5,5))，sigmaX 为标准差，设 0 时由 ksize 自动计算。核越大平滑越强；用于去噪和作为 Canny 前置平滑。', 0),
-('cv2.medianBlur', 'OpenCV', 'cv2.medianBlur(src, ksize) 中值滤波，ksize 为奇数。对椒盐噪声效果好，能保留边缘；但核越大计算越慢。', 0),
-('cv2.equalizeHist', 'OpenCV', 'cv2.equalizeHist(src) 直方图均衡化，仅支持单通道灰度图；彩色图需先分离通道或转 YCrCb 对亮度通道均衡。', 0),
-('cv2.calcHist', 'OpenCV', 'cv2.calcHist([img], [0], None, [256], [0,256]) 计算直方图，参数依次为：图像列表、通道索引、掩膜、histSize(灰度级数)、范围。返回数组可直接用于绘制直方图。', 0),
-('cv2.morphologyEx', 'OpenCV', 'cv2.morphologyEx(src, op, kernel) 形态学操作，op 常用 cv2.MORPH_OPEN(开运算)、cv2.MORPH_CLOSE(闭运算)、cv2.MORPH_GRADIENT(梯度)、cv2.MORPH_TOPHAT。kernel 用 cv2.getStructuringElement(shape, ksize) 生成，如 MORPH_RECT/ELLIPSE/CROSS。', 0),
-('cv2.Canny', 'OpenCV', 'cv2.Canny(src, threshold1, threshold2) 边缘检测，threshold1 为低阈值，threshold2 为高阈值，通常 threshold2≈2~3倍 threshold1。双阈值决定边缘连接；值越低检测到的边缘越多但噪声也多。', 0),
-('cv2.threshold', 'OpenCV', 'cv2.threshold(src, thresh, maxval, type) 固定阈值分割，返回 (retval, dst)。type 常用 cv2.THRESH_BINARY(二值)、cv2.THRESH_OTSU(与 THRESH_BINARY 组合可自动求阈值，此时 thresh 传 0)。', 0),
-('cv2.Sobel', 'OpenCV', 'cv2.Sobel(src, ddepth, dx, dy, ksize) 索贝尔梯度算子，dx/dy 表示求导方向，ddepth 常用 cv2.CV_64F 后取绝对值 cv2.convertScaleAbs 避免负值截断。', 0),
-('cv2.Laplacian', 'OpenCV', 'cv2.Laplacian(src, ddepth) 拉普拉斯算子，对噪声敏感，常先高斯平滑；可检测图像边缘和灰度突变区域。', 0),
-('cv2.getStructuringElement', 'OpenCV', 'cv2.getStructuringElement(shape, ksize) 生成形态学结构元素，shape 可选 cv2.MORPH_RECT(矩形)、cv2.MORPH_ELLIPSE(椭圆)、cv2.MORPH_CROSS(十字形)。结构元素形状和大小直接影响腐蚀膨胀效果。', 0),
-('cv2.SIFT_create', 'OpenCV', 'sift = cv2.SIFT_create() 创建 SIFT 检测器；kp, des = sift.detectAndCompute(img, None) 提取关键点和描述子。注意较新 OpenCV 中 SIFT 在 cv2.SIFT_create 而非 xfeatures2d。', 0),
-('cv2.createBackgroundSubtractorMOG2', 'OpenCV', 'bg = cv2.createBackgroundSubtractorMOG2() 创建 MOG2 背景建模器；fgmask = bg.apply(frame) 得到前景掩膜。可设置 history(历史帧数)、varThreshold(方差阈值)。', 0);
+LOCK TABLES `homework` WRITE;
+/*!40000 ALTER TABLE `homework` DISABLE KEYS */;
+INSERT INTO `homework` (`id`, `lesson_pack_id`, `title`, `description`, `questions_json`, `deadline`, `total_score`, `create_time`, `update_time`) VALUES (4,1,'第1次课作业：图像基础与灰度直方图','本作业共 10 题，满分 100 分。选择题、填空题提交后自动判分；代码题由教师评阅。','[{\"type\": \"choice\", \"stem\": \"灰度图像中，每个像素的灰度值取值范围是？\", \"options\": [\"A. 0~1\", \"B. 0~255\", \"C. -128~127\", \"D. 0~65535\"], \"answer\": \"B\", \"score\": 10}, {\"type\": \"choice\", \"stem\": \"关于采样与量化的关系，下列说法正确的是？\", \"options\": [\"A. 采样决定灰度级分辨率\", \"B. 量化决定空间分辨率\", \"C. 采样决定空间分辨率，量化决定灰度级分辨率\", \"D. 采样和量化都决定图像颜色\"], \"answer\": \"C\", \"score\": 10}, {\"type\": \"choice\", \"stem\": \"8 位灰度图像共有多少个灰度级？\", \"options\": [\"A. 128\", \"B. 255\", \"C. 256\", \"D. 512\"], \"answer\": \"C\", \"score\": 10}, {\"type\": \"choice\", \"stem\": \"一幅偏暗的图像，其灰度直方图的分布特点是？\", \"options\": [\"A. 集中在低灰度区（偏左）\", \"B. 集中在高灰度区（偏右）\", \"C. 均匀分布\", \"D. 无法判断\"], \"answer\": \"A\", \"score\": 10}, {\"type\": \"choice\", \"stem\": \"关于灰度直方图，下列说法错误的是？\", \"options\": [\"A. 反映图像亮度分布\", \"B. 反映像素的空间位置\", \"C. 可用于阈值选取\", \"D. 低对比度图像的直方图集中\"], \"answer\": \"B\", \"score\": 10}, {\"type\": \"choice\", \"stem\": \"欠采样会导致图像出现什么现象？\", \"options\": [\"A. 伪轮廓\", \"B. 马赛克/混叠\", \"C. 颜色偏蓝\", \"D. 图像变暗\"], \"answer\": \"B\", \"score\": 10}, {\"type\": \"blank\", \"stem\": \"512×512 的 8 位灰度图像，其数据量为____KB。\", \"answer\": \"256\", \"score\": 10}, {\"type\": \"blank\", \"stem\": \"灰度直方图的横轴表示____。\", \"answer\": \"灰度级|灰度值|灰度\", \"score\": 10}, {\"type\": \"blank\", \"stem\": \"量化是对图像____值的离散化。\", \"answer\": \"灰度|灰度值|亮度\", \"score\": 10}, {\"type\": \"code\", \"stem\": \"使用 OpenCV 读取一张灰度图像，计算并绘制其灰度直方图（用 calcHist 计算，输出直方图数组即可）。\", \"answer\": \"import cv2\\nimg = cv2.imread(\'image.jpg\', cv2.IMREAD_GRAYSCALE)\\nhist = cv2.calcHist([img], [0], None, [256], [0, 256])\\nprint(hist)\", \"score\": 10}]',NULL,100,'2026-09-25 13:52:44','2026-09-25 13:52:44');
+/*!40000 ALTER TABLE `homework` ENABLE KEYS */;
+UNLOCK TABLES;
 
--- RAG 知识库：常见报错
-INSERT INTO `rag_document` (`title`, `category`, `content`, `chunk_index`) VALUES
-('BGR/RGB 颜色混淆', '报错库', '现象：用 matplotlib 显示 OpenCV 读取的图像颜色偏蓝/偏红。原因：OpenCV 用 BGR 顺序，matplotlib/PIL 用 RGB 顺序。解决：显示前用 cv2.cvtColor(img, cv2.COLOR_BGR2RGB) 转换。', 0),
-('图像路径错误返回None', '报错库', '现象：AttributeError: NoneType object has no attribute shape。原因：cv2.imread 因路径错误/中文路径/文件不存在返回 None。解决：检查路径是否正确、是否存在中文、用绝对路径或 os.path.join，读取后判空。', 0),
-('数值溢出', '报错库', '现象：图像运算后出现大片白色或黑色块。原因：np.uint8 类型加减运算溢出(超过255或小于0)。解决：使用 cv2.add/subtract 或先转 float32 运算再 clip(0,255) 后转回 uint8。', 0),
-('核大小必须为奇数', '报错库', '现象：Assertion failed (ksize % 2 == 1)。原因：高斯/中值滤波等核大小必须是正奇数。解决：核大小设为奇数，如(3,3)、(5,5)。', 0),
-('通道数不匹配', '报错库', '现象：shape 维度与期望不符。原因：灰度图(2维)与彩色图(3维)混用，或通道顺序错误。解决：检查 img.shape，必要时用 cv2.cvtColor 统一为灰度或彩色。', 0),
-('SIFT 模块不存在', '报错库', '现象：AttributeError: module cv2 has no attribute xfeatures2d。原因：新版 OpenCV 已将 SIFT 移入主模块。解决：使用 cv2.SIFT_create()。', 0),
-('阈值过高导致全黑', '报错库', '现象：二值化后整幅图为黑色。原因：threshold 阈值设置过高，所有像素都低于阈值。解决：用 Otsu 自动阈值，或先查看直方图选择合适阈值。', 0);
+LOCK TABLES `user` WRITE;
+/*!40000 ALTER TABLE `user` DISABLE KEYS */;
+INSERT INTO `user` (`id`, `username`, `password_hash`, `role`, `real_name`, `class_name`, `create_time`, `update_time`, `last_login_time`) VALUES (1,'teacher','$2a$10$cCsCSEFDWnLXr91dWMGeSuytuKlhxiMj9HU4BzozuiraIAnwg84/O','TEACHER','授课教师',NULL,'2026-09-24 12:56:27','2026-09-24 12:56:27','2026-09-29 19:53:08'),(2,'20240001','$2a$10$SZjxoSzYGuQZcs9dGBsPNOCS8ryqFwYkWOsEgOg7MPtOwDCLgHnkO','STUDENT','张三','计科2401','2026-09-24 12:58:07','2026-09-24 12:58:07','2026-09-29 19:02:26'),(3,'20240002','$2a$10$SSOZJ8z7FO66Qt5snMZvV.VsxxDIVkqptrmpy/oJaPdggID/5ZiJW','STUDENT','李四','计科2401','2026-09-24 12:58:07','2026-09-24 12:58:07','2026-09-25 13:52:55'),(4,'20240003','$2a$10$a0a.N3oWSitLF6EhjJCLAu72DoJ14GUecjP6Y6x0/mnZuv35LAb.e','STUDENT','王五','计科2401','2026-09-24 12:58:07','2026-09-24 12:58:07','2026-09-25 14:17:30');
+/*!40000 ALTER TABLE `user` ENABLE KEYS */;
+UNLOCK TABLES;
+
+LOCK TABLES `rag_document` WRITE;
+/*!40000 ALTER TABLE `rag_document` DISABLE KEYS */;
+INSERT INTO `rag_document` (`id`, `title`, `category`, `content`, `chunk_index`, `embedding`, `create_time`) VALUES (1,'灰度直方图概念','教材','灰度直方图是图像灰度级的统计函数，横轴为灰度级(0~255)，纵轴为该灰度级出现的像素个数或频率。它反映图像的亮度分布和对比度：偏暗的图像直方图集中在低灰度区，偏亮的集中在高灰度区，低对比度图像直方图集中在一个窄区间，高对比度图像直方图分布较均匀。',0,NULL,'2026-09-24 12:51:18'),(2,'直方图均衡化原理','教材','直方图均衡化通过灰度变换函数 s=T(r) 将原图灰度级映射，使输出图像直方图近似均匀分布。T(r) 取输入灰度级的累计分布函数(CDF)。其作用是自动增强图像对比度，尤其适用于背景与前景都较亮或较暗的图像。局限是可能放大噪声、丢失灰度层次。',0,NULL,'2026-09-24 12:51:18'),(3,'采样与量化','教材','采样是对空间坐标的离散化，决定图像的空间分辨率（像素数）；量化是对灰度值的离散化，决定灰度级分辨率（如8位=256级）。采样间隔越小、量化级数越多，图像越精细，但数据量越大。欠采样会产生混叠（马赛克/锯齿），欠量化会产生伪轮廓。',0,NULL,'2026-09-24 12:51:18'),(4,'傅里叶变换与频谱','教材','二维离散傅里叶变换(DFT)将图像从空间域变换到频率域。频谱中心低频对应图像中变化平缓的区域（大面积背景），高频对应边缘、纹理和噪声等剧烈变化。频率域滤波即对频谱乘以滤波器函数：低通滤波保留低频、模糊图像；高通滤波保留高频、突出边缘。',0,NULL,'2026-09-24 12:51:18'),(5,'形态学腐蚀与膨胀','教材','腐蚀使目标边界向内收缩，可消除小于结构元素的噪声和细连接；膨胀使目标边界向外扩张，可填补空洞、连接断裂。开运算是先腐蚀后膨胀，平滑轮廓并消除小物体；闭运算是先膨胀后腐蚀，填充小孔并连接邻近物体。',0,NULL,'2026-09-24 12:51:18'),(6,'Otsu 阈值分割','教材','Otsu 方法通过最大化前景与背景的类间方差来自动选取最佳阈值。它遍历所有灰度级，计算每个阈值对应的类间方差，取方差最大者为阈值。适用于灰度直方图呈双峰分布的图像，计算简单且稳定，是最常用的自动全局阈值方法。',0,NULL,'2026-09-24 12:51:18'),(7,'Canny 边缘检测','教材','Canny 算法步骤：1) 高斯滤波平滑；2) 计算梯度幅值和方向；3) 非极大值抑制细化边缘；4) 双阈值(高低阈值)检测强弱边缘；5) 滞后连接弱边缘到强边缘。双阈值中高于高阈值的为强边缘，低于低阈值的舍弃，介于之间的若与强边缘连接则保留。',0,NULL,'2026-09-24 12:51:18'),(8,'SIFT 特征','教材','SIFT(尺度不变特征变换)通过构建高斯差分金字塔在不同尺度空间检测极值点作为关键点，为每个关键点计算梯度方向直方图生成128维描述子，具有尺度、旋转、光照不变性，广泛用于图像匹配与拼接。',0,NULL,'2026-09-24 12:51:18'),(9,'LBP 纹理特征','教材','局部二值模式(LBP)以中心像素为阈值，将邻域像素与中心比较，大于为1否则为0，得到二进制编码作为该点纹理描述。LBP 对灰度单调变化鲁棒、计算快，广泛用于纹理分类和人脸识别。',0,NULL,'2026-09-24 12:51:18'),(10,'MOG2 背景建模','教材','MOG2 使用混合高斯模型对每个像素建模，动态更新均值和方差，将长时间稳定的像素判为背景，从而实现运动目标检测。相比帧差法，它更能适应光照变化和缓慢移动的背景，是 OpenCV 中 createBackgroundSubtractorMOG2 的实现。',0,NULL,'2026-09-24 12:51:18'),(11,'cv2.imread','OpenCV','cv2.imread(path, flags) 读取图像，flags 常用 cv2.IMREAD_COLOR(默认，彩色3通道BGR)、cv2.IMREAD_GRAYSCALE(灰度)、cv2.IMREAD_UNCHANGED(含alpha)。注意：OpenCV 读取的是 BGR 顺序而非 RGB；路径含中文或找不到文件会返回 None，需判空。',0,NULL,'2026-09-24 12:51:18'),(12,'cv2.cvtColor','OpenCV','cv2.cvtColor(src, code) 颜色空间转换，常用 code：cv2.COLOR_BGR2RGB、cv2.COLOR_BGR2GRAY、cv2.COLOR_BGR2HSV。将 OpenCV 的 BGR 图像转 RGB 用于 matplotlib 显示时必须用 BGR2RGB，否则颜色偏蓝。',0,NULL,'2026-09-24 12:51:18'),(13,'cv2.GaussianBlur','OpenCV','cv2.GaussianBlur(src, ksize, sigmaX) 高斯滤波，ksize 为核大小(奇数如(5,5))，sigmaX 为标准差，设 0 时由 ksize 自动计算。核越大平滑越强；用于去噪和作为 Canny 前置平滑。',0,NULL,'2026-09-24 12:51:18'),(14,'cv2.medianBlur','OpenCV','cv2.medianBlur(src, ksize) 中值滤波，ksize 为奇数。对椒盐噪声效果好，能保留边缘；但核越大计算越慢。',0,NULL,'2026-09-24 12:51:18'),(15,'cv2.equalizeHist','OpenCV','cv2.equalizeHist(src) 直方图均衡化，仅支持单通道灰度图；彩色图需先分离通道或转 YCrCb 对亮度通道均衡。',0,NULL,'2026-09-24 12:51:18'),(16,'cv2.calcHist','OpenCV','cv2.calcHist([img], [0], None, [256], [0,256]) 计算直方图，参数依次为：图像列表、通道索引、掩膜、histSize(灰度级数)、范围。返回数组可直接用于绘制直方图。',0,NULL,'2026-09-24 12:51:18'),(17,'cv2.morphologyEx','OpenCV','cv2.morphologyEx(src, op, kernel) 形态学操作，op 常用 cv2.MORPH_OPEN(开运算)、cv2.MORPH_CLOSE(闭运算)、cv2.MORPH_GRADIENT(梯度)、cv2.MORPH_TOPHAT。kernel 用 cv2.getStructuringElement(shape, ksize) 生成，如 MORPH_RECT/ELLIPSE/CROSS。',0,NULL,'2026-09-24 12:51:18'),(18,'cv2.Canny','OpenCV','cv2.Canny(src, threshold1, threshold2) 边缘检测，threshold1 为低阈值，threshold2 为高阈值，通常 threshold2≈2~3倍 threshold1。双阈值决定边缘连接；值越低检测到的边缘越多但噪声也多。',0,NULL,'2026-09-24 12:51:18'),(19,'cv2.threshold','OpenCV','cv2.threshold(src, thresh, maxval, type) 固定阈值分割，返回 (retval, dst)。type 常用 cv2.THRESH_BINARY(二值)、cv2.THRESH_OTSU(与 THRESH_BINARY 组合可自动求阈值，此时 thresh 传 0)。',0,NULL,'2026-09-24 12:51:18'),(20,'cv2.Sobel','OpenCV','cv2.Sobel(src, ddepth, dx, dy, ksize) 索贝尔梯度算子，dx/dy 表示求导方向，ddepth 常用 cv2.CV_64F 后取绝对值 cv2.convertScaleAbs 避免负值截断。',0,NULL,'2026-09-24 12:51:18'),(21,'cv2.Laplacian','OpenCV','cv2.Laplacian(src, ddepth) 拉普拉斯算子，对噪声敏感，常先高斯平滑；可检测图像边缘和灰度突变区域。',0,NULL,'2026-09-24 12:51:18'),(22,'cv2.getStructuringElement','OpenCV','cv2.getStructuringElement(shape, ksize) 生成形态学结构元素，shape 可选 cv2.MORPH_RECT(矩形)、cv2.MORPH_ELLIPSE(椭圆)、cv2.MORPH_CROSS(十字形)。结构元素形状和大小直接影响腐蚀膨胀效果。',0,NULL,'2026-09-24 12:51:18'),(23,'cv2.SIFT_create','OpenCV','sift = cv2.SIFT_create() 创建 SIFT 检测器；kp, des = sift.detectAndCompute(img, None) 提取关键点和描述子。注意较新 OpenCV 中 SIFT 在 cv2.SIFT_create 而非 xfeatures2d。',0,NULL,'2026-09-24 12:51:18'),(24,'cv2.createBackgroundSubtractorMOG2','OpenCV','bg = cv2.createBackgroundSubtractorMOG2() 创建 MOG2 背景建模器；fgmask = bg.apply(frame) 得到前景掩膜。可设置 history(历史帧数)、varThreshold(方差阈值)。',0,NULL,'2026-09-24 12:51:18'),(25,'BGR/RGB 颜色混淆','报错库','现象：用 matplotlib 显示 OpenCV 读取的图像颜色偏蓝/偏红。原因：OpenCV 用 BGR 顺序，matplotlib/PIL 用 RGB 顺序。解决：显示前用 cv2.cvtColor(img, cv2.COLOR_BGR2RGB) 转换。',0,NULL,'2026-09-24 12:51:18'),(26,'图像路径错误返回None','报错库','现象：AttributeError: NoneType object has no attribute shape。原因：cv2.imread 因路径错误/中文路径/文件不存在返回 None。解决：检查路径是否正确、是否存在中文、用绝对路径或 os.path.join，读取后判空。',0,NULL,'2026-09-24 12:51:18'),(27,'数值溢出','报错库','现象：图像运算后出现大片白色或黑色块。原因：np.uint8 类型加减运算溢出(超过255或小于0)。解决：使用 cv2.add/subtract 或先转 float32 运算再 clip(0,255) 后转回 uint8。',0,NULL,'2026-09-24 12:51:18'),(28,'核大小必须为奇数','报错库','现象：Assertion failed (ksize % 2 == 1)。原因：高斯/中值滤波等核大小必须是正奇数。解决：核大小设为奇数，如(3,3)、(5,5)。',0,NULL,'2026-09-24 12:51:18'),(29,'通道数不匹配','报错库','现象：shape 维度与期望不符。原因：灰度图(2维)与彩色图(3维)混用，或通道顺序错误。解决：检查 img.shape，必要时用 cv2.cvtColor 统一为灰度或彩色。',0,NULL,'2026-09-24 12:51:18'),(30,'SIFT 模块不存在','报错库','现象：AttributeError: module cv2 has no attribute xfeatures2d。原因：新版 OpenCV 已将 SIFT 移入主模块。解决：使用 cv2.SIFT_create()。',0,NULL,'2026-09-24 12:51:18'),(31,'阈值过高导致全黑','报错库','现象：二值化后整幅图为黑色。原因：threshold 阈值设置过高，所有像素都低于阈值。解决：用 Otsu 自动阈值，或先查看直方图选择合适阈值。',0,NULL,'2026-09-24 12:51:18');
+/*!40000 ALTER TABLE `rag_document` ENABLE KEYS */;
+UNLOCK TABLES;
+
+LOCK TABLES `prompt_template` WRITE;
+/*!40000 ALTER TABLE `prompt_template` DISABLE KEYS */;
+INSERT INTO `prompt_template` (`id`, `name`, `purpose`, `content`, `create_time`, `update_time`) VALUES (1,'RAG问答','chat','你是《数字图像处理》课程的AI助教「贾维斯」。基于知识库片段回答，回答要准确通俗、面向初学者，标注来源。','2026-09-24 15:26:48','2026-09-24 15:26:48'),(2,'代码排错','code','你是代码排错助手，解释报错原因、给出修复方向，不代替学生写完整代码、不执行代码。','2026-09-24 15:26:48','2026-09-24 15:26:48'),(3,'函数查询','func','你是OpenCV/NumPy函数查询助手，给出签名、参数、返回值、示例、注意点。','2026-09-24 15:26:48','2026-09-24 15:26:48'),(4,'备课助手','prepare','你是备课助手，从教案抽取教学目标、重难点、思政、讨论题、挑战任务，以JSON返回。','2026-09-24 15:26:48','2026-09-24 15:26:48'),(5,'图片分析','vision','你是数字图像处理课程AI助教，客观描述图像内容，结合图像处理知识分析，给出学习建议。','2026-09-24 15:26:48','2026-09-24 15:26:48');
+/*!40000 ALTER TABLE `prompt_template` ENABLE KEYS */;
+UNLOCK TABLES;
+
+LOCK TABLES `peer_review_rubric` WRITE;
+/*!40000 ALTER TABLE `peer_review_rubric` DISABLE KEYS */;
+INSERT INTO `peer_review_rubric` (`id`, `name`, `dimensions_json`, `description`, `create_time`, `update_time`) VALUES (1,'默认互评量表','[{\"name\":\"参数合理性\",\"desc\":\"参数设置是否符合图像处理原理\",\"weight\":40},{\"name\":\"结论正确性\",\"desc\":\"实验结论是否正确\",\"weight\":40},{\"name\":\"展示清晰度\",\"desc\":\"截图与说明是否清晰\",\"weight\":20}]','三维度默认量表：参数合理性40% + 结论正确性40% + 展示清晰度20%','2026-09-25 11:43:07','2026-09-25 11:43:07'),(2,'1','[{\"name\":\"1\",\"desc\":\"1\",\"weight\":10}]','1','2026-09-29 19:01:32','2026-09-29 19:01:32');
+/*!40000 ALTER TABLE `peer_review_rubric` ENABLE KEYS */;
+UNLOCK TABLES;
+
+LOCK TABLES `peer_review_activity` WRITE;
+/*!40000 ALTER TABLE `peer_review_activity` DISABLE KEYS */;
+INSERT INTO `peer_review_activity` (`id`, `name`, `mode`, `rubric_id`, `lesson_pack_id`, `duration_sec`, `status`, `start_time`, `end_time`, `create_time`) VALUES (2,'2','gallery',1,1,300,'FINISHED','2026-09-29 19:01:58','2026-09-29 19:54:35','2026-09-29 19:01:53');
+/*!40000 ALTER TABLE `peer_review_activity` ENABLE KEYS */;
+UNLOCK TABLES;
+
+LOCK TABLES `system_config` WRITE;
+/*!40000 ALTER TABLE `system_config` DISABLE KEYS */;
+INSERT INTO `system_config` (`id`, `config_key`, `config_value`, `update_time`) VALUES (1,'ai.baseUrl','https://dashscope.aliyuncs.com/compatible-mode/v1','2026-09-25 11:03:59'),(2,'ai.apiKey','sk-your-api-key-here','2026-09-25 11:03:59'),(3,'ai.model','qwen3.7-flash-2026-07-15','2026-09-25 11:03:59'),(4,'ai.visionModel','wan2.7-t2v-2026-06-12','2026-09-25 11:03:59'),(5,'ratelimit.ai-chat.limit','30','2026-09-25 11:03:59'),(6,'ratelimit.ai-chat.windowSec','3600','2026-09-25 11:03:59'),(7,'ratelimit.ai-image.limit','10','2026-09-25 11:03:59'),(8,'ratelimit.ai-image.windowSec','3600','2026-09-25 11:03:59'),(9,'ratelimit.ai-code.limit','20','2026-09-25 11:03:59'),(10,'ratelimit.ai-code.windowSec','3600','2026-09-25 11:03:59'),(11,'ratelimit.ai-func.limit','30','2026-09-25 11:03:59'),(12,'ratelimit.ai-func.windowSec','3600','2026-09-25 11:03:59'),(13,'ratelimit.ai-prepare.limit','20','2026-09-25 11:03:59'),(14,'ratelimit.ai-prepare.windowSec','3600','2026-09-25 11:03:59'),(15,'backup.enabled','true','2026-09-25 11:03:59'),(16,'backup.path','./backup','2026-09-25 11:03:59'),(17,'backup.keepCount','10','2026-09-25 11:03:59');
+/*!40000 ALTER TABLE `system_config` ENABLE KEYS */;
+UNLOCK TABLES;
+
+LOCK TABLES `lesson_material_version` WRITE;
+/*!40000 ALTER TABLE `lesson_material_version` DISABLE KEYS */;
+INSERT INTO `lesson_material_version` (`id`, `material_id`, `version`, `title`, `description`, `file_path`, `file_type`, `file_size`, `create_time`) VALUES (1,2,1,'采样与量化·重点难点','采样决定空间分辨率，量化决定灰度分辨率；易混淆分辨率与清晰度。',NULL,NULL,0,'2026-09-24 15:37:38'),(2,2,2,'采样与量化·重点难点(改)','采样决定空间分辨率，量化决定灰度分辨率；易混淆分辨率与清晰度。',NULL,NULL,0,'2026-09-24 15:37:46');
+/*!40000 ALTER TABLE `lesson_material_version` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
+
+/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
+/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
+/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
+

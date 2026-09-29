@@ -18,7 +18,7 @@
       </nav>
       <div class="nav-footer">
         <el-button type="primary" class="switch-btn" @click="switchStudentView">🎓 切换学生页面</el-button>
-        <el-button text @click="logout">退出登录</el-button>
+        <el-button class="logout-btn" @click="logout">退出登录</el-button>
       </div>
     </aside>
     <main class="main">
@@ -71,6 +71,7 @@ function logout() {
 .nav-item:hover { background: rgba(255,255,255,0.08); color: #fff; }
 .nav-item.active { background: rgba(255,255,255,0.15); color: #fff; font-weight: 600; border-left: 3px solid #06B6D4; }
 .nav-footer { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; }
-.switch-btn { width: 100%; }
+.switch-btn { width: 100%; margin: 0; }
+.logout-btn { width: 100%; margin: 0; }
 .main { flex: 1; overflow-y: auto; padding: 24px; background: #F5F7FB; }
 </style>

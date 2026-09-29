@@ -59,6 +59,75 @@ public class AiClient {
     }
 
     /**
+     * 流式对话：逐块回调 onChunk 返回增量内容（支持思考过程 onReason）
+     */
+    public void chatStream(List<Map<String, String>> messages, double temperature,
+                           java.util.function.Consumer<String> onChunk) {
+        chatStreamFull(messages, temperature, onChunk, null);
+    }
+
+    /**
+     * 流式对话（完整版）：onChunk 返回正文增量，onReason 返回思考过程增量（DeepSeek R1 等模型）
+     */
+    public void chatStreamFull(List<Map<String, String>> messages, double temperature,
+                               java.util.function.Consumer<String> onChunk,
+                               java.util.function.Consumer<String> onReason) {
+        String endpoint = trimTrailing(baseUrl()) + "/chat/completions";
+        ObjectNode body = objectMapper.createObjectNode();
+        body.put("model", model());
+        body.put("temperature", temperature);
+        body.put("max_tokens", 2048);
+        body.put("stream", true);
+        ArrayNode arr = objectMapper.createArrayNode();
+        messages.forEach(arr::addPOJO);
+        body.set("messages", arr);
+
+        try {
+            String json = objectMapper.writeValueAsString(body);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint))
+                    .timeout(Duration.ofSeconds(120))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + apiKey())
+                    .header("Accept", "text/event-stream")
+                    .POST(HttpRequest.BodyPublishers.ofString(json))
+                    .build();
+            HttpResponse<java.io.InputStream> response =
+                    httpClient.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() != 200) {
+                log.error("AI 流式调用失败 status={}", response.statusCode());
+                throw new BizException(502, "AI 服务调用失败（状态码 " + response.statusCode() + "）");
+            }
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(response.body(), java.nio.charset.StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (!line.startsWith("data:")) continue;
+                    String data = line.substring(5).trim();
+                    if ("[DONE]".equals(data)) break;
+                    JsonNode node = objectMapper.readTree(data);
+                    JsonNode choices = node.path("choices");
+                    if (choices.isArray() && choices.size() > 0) {
+                        JsonNode delta = choices.get(0).path("delta");
+                        // 思考过程（DeepSeek R1 / reasoner 模型的 reasoning_content）
+                        if (onReason != null) {
+                            String reason = delta.path("reasoning_content").asText("");
+                            if (!reason.isEmpty()) onReason.accept(reason);
+                        }
+                        String text = delta.path("content").asText("");
+                        if (!text.isEmpty()) onChunk.accept(text);
+                    }
+                }
+            }
+        } catch (BizException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("AI 流式请求异常", e);
+            throw new BizException(502, "AI 服务连接失败，请检查网络与 API 配置");
+        }
+    }
+
+    /**
      * 视觉对话：messages 中的 user content 可包含 image_url(base64 data url)
      */
     public String chatWithImage(String systemPrompt, String userText, String base64Image, String mimeType) {

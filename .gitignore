@@ -8,6 +8,8 @@
 # ===== 工作区数据 =====
 .workbuddy/
 dump.rdb
+temp/
+work/
 
 # ===== 后端 =====
 backend/target/

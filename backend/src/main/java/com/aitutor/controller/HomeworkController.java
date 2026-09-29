@@ -32,6 +32,7 @@ public class HomeworkController {
     private final HomeworkSubmissionMapper submissionMapper;
     private final UserMapper userMapper;
     private final HomeworkParser homeworkParser;
+    private final com.aitutor.service.LearningService learningService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** 教师上传作业文件(txt/md)，解析成题目预览（不落库） */
@@ -126,6 +127,7 @@ public class HomeworkController {
             int score = 0;
             int autoCount = 0;
             List<Map<String, Object>> detail = new ArrayList<>();
+            List<String> wrongStems = new ArrayList<>();
             for (int i = 0; i < questions.size(); i++) {
                 Map<String, Object> q = questions.get(i);
                 String type = String.valueOf(q.getOrDefault("type", "choice"));
@@ -159,6 +161,10 @@ public class HomeworkController {
                 if (right) {
                     score += qScore;
                     autoCount++;
+                } else {
+                    // 记录错题题干，用于学情易错点统计
+                    String stem = String.valueOf(q.getOrDefault("stem", ""));
+                    if (!stem.isBlank()) wrongStems.add(stem);
                 }
                 Map<String, Object> d = new HashMap<>();
                 d.put("index", i);
@@ -176,6 +182,13 @@ public class HomeworkController {
             sub.setScore(score);
             sub.setAutoScored(1);
             submissionMapper.insert(sub);
+
+            // 更新学情统计（知识掌握度、易错点、异常提醒）
+            try {
+                learningService.recordHomeworkResult(userId, h.getLessonPackId(), score, h.getTotalScore(), wrongStems);
+            } catch (Exception ex) {
+                log.warn("学情统计更新失败", ex);
+            }
 
             Map<String, Object> result = new HashMap<>();
             result.put("score", score);

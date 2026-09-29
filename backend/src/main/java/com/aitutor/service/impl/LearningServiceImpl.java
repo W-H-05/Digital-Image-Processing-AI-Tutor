@@ -32,6 +32,8 @@ public class LearningServiceImpl implements LearningService {
     private final KnowledgePointMapper knowledgePointMapper;
     private final LearningStatsMapper learningStatsMapper;
     private final ConfusionClusterMapper confusionClusterMapper;
+    private final HomeworkSubmissionMapper homeworkSubmissionMapper;
+    private final HomeworkMapper homeworkMapper;
     private final RedisTemplate<String, Object> redisTemplate;
     private final LearningWebSocketHandler webSocketHandler;
     private final OnlineService onlineService;
@@ -237,33 +239,44 @@ public class LearningServiceImpl implements LearningService {
 
     @Override
     public List<Map<String, Object>> errorRanking(Long lessonPackId) {
-        // 从代码排错记录中按关键词统计错误类型
+        // 易错点来自作业错题（confusion_cluster）+ 代码排错（code_help_record）
+        List<Map<String, Object>> result = new ArrayList<>();
+        Map<String, Map<String, Object>> counter = new LinkedHashMap<>();
+        // 1. 作业错题聚类
+        List<ConfusionCluster> clusters = confusionClusterMapper.selectList(
+                new QueryWrapper<ConfusionCluster>().eq(lessonPackId != null, "lesson_pack_id", lessonPackId));
+        for (ConfusionCluster c : clusters) {
+            String name = c.getClusterName() == null ? "未分类" : c.getClusterName();
+            Map<String, Object> m = counter.computeIfAbsent(name, k -> {
+                Map<String, Object> mm = new HashMap<>();
+                mm.put("type", k);
+                mm.put("count", 0);
+                mm.put("studentCount", 0);
+                mm.put("source", "作业");
+                return mm;
+            });
+            m.put("count", (int) m.get("count") + (c.getQuestionCount() == null ? 0 : c.getQuestionCount()));
+            m.put("studentCount", Math.max((int) m.get("studentCount"), c.getStudentCount() == null ? 0 : c.getStudentCount()));
+        }
+        // 2. 代码排错记录
         List<CodeHelpRecord> records = codeHelpRecordMapper.selectList(
                 new QueryWrapper<CodeHelpRecord>().eq(lessonPackId != null, "lesson_pack_id", lessonPackId));
-        Map<String, Map<String, Object>> counter = new HashMap<>();
         for (CodeHelpRecord r : records) {
             String type = classifyError(r.getErrorText());
             Map<String, Object> m = counter.computeIfAbsent(type, k -> {
                 Map<String, Object> mm = new HashMap<>();
                 mm.put("type", k);
                 mm.put("count", 0);
-                mm.put("students", new java.util.HashSet<Long>());
+                mm.put("studentCount", 0);
+                mm.put("source", "代码排错");
                 return mm;
             });
             m.put("count", (int) m.get("count") + 1);
-            ((java.util.HashSet<Long>) m.get("students")).add(r.getUserId());
+            m.put("studentCount", (int) m.get("studentCount") + 1);
         }
-        return counter.values().stream()
-                .sorted((a, b) -> (int) b.get("count") - (int) a.get("count"))
-                .limit(10)
-                .map(m -> {
-                    Map<String, Object> r = new HashMap<>();
-                    r.put("type", m.get("type"));
-                    r.put("count", m.get("count"));
-                    r.put("studentCount", ((java.util.HashSet<Long>) m.get("students")).size());
-                    return r;
-                })
-                .collect(java.util.stream.Collectors.toList());
+        result.addAll(counter.values());
+        result.sort((a, b) -> (int) b.get("count") - (int) a.get("count"));
+        return result.stream().limit(10).collect(Collectors.toList());
     }
 
     private String classifyError(String errorText) {
@@ -305,6 +318,27 @@ public class LearningServiceImpl implements LearningService {
                 m.put("username", s.getUsername());
                 m.put("type", "无操作");
                 m.put("detail", "登录后无任何学习操作");
+                result.add(m);
+            }
+        }
+        // 作业低分提醒：得分率 < 60% 的学生
+        List<HomeworkSubmission> subs = homeworkSubmissionMapper.selectList(null);
+        for (HomeworkSubmission sub : subs) {
+            if (sub.getScore() == null) continue;
+            Homework hw = homeworkMapper.selectById(sub.getHomeworkId());
+            if (hw == null || hw.getTotalScore() == null || hw.getTotalScore() <= 0) continue;
+            if (lessonPackId != null && hw.getLessonPackId() != null && !hw.getLessonPackId().equals(lessonPackId)) continue;
+            double rate = sub.getScore() * 100.0 / hw.getTotalScore();
+            if (rate < 60) {
+                User su = userMapper.selectById(sub.getUserId());
+                if (su == null) continue;
+                if (!Constants.ROLE_STUDENT.equals(su.getRole())) continue; // 只统计学生
+                Map<String, Object> m = new HashMap<>();
+                m.put("studentId", su.getId());
+                m.put("studentName", su.getRealName() == null ? su.getUsername() : su.getRealName());
+                m.put("username", su.getUsername());
+                m.put("type", "作业低分");
+                m.put("detail", "「" + hw.getTitle() + "」得分率 " + Math.round(rate) + "%");
                 result.add(m);
             }
         }
@@ -374,6 +408,89 @@ public class LearningServiceImpl implements LearningService {
                     return m;
                 })
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public void recordHomeworkResult(Long userId, Long lessonPackId, int score, int totalScore, List<String> wrongStems) {
+        if (lessonPackId == null) return;
+        double rate = totalScore <= 0 ? 0 : (score * 1.0 / totalScore);
+        // 1. 更新知识掌握度：课次下所有知识点，掌握度 = 作业得分率
+        List<KnowledgePoint> points = knowledgePointMapper.selectList(
+                new QueryWrapper<KnowledgePoint>().eq("lesson_pack_id", lessonPackId));
+        for (KnowledgePoint kp : points) {
+            LearningStats exist = learningStatsMapper.selectOne(
+                    new QueryWrapper<LearningStats>()
+                            .eq("user_id", userId).eq("knowledge_point_id", kp.getId()));
+            if (exist == null) {
+                exist = new LearningStats();
+                exist.setUserId(userId);
+                exist.setLessonPackId(lessonPackId);
+                exist.setKnowledgePointId(kp.getId());
+                exist.setMasteryScore(java.math.BigDecimal.valueOf(Math.round(rate * 100)));
+                exist.setErrorCount(0);
+                exist.setConfusionCount(0);
+                exist.setParticipationScore(java.math.BigDecimal.valueOf(100));
+                exist.setUpdateTime(LocalDateTime.now());
+                learningStatsMapper.insert(exist);
+            } else {
+                exist.setMasteryScore(java.math.BigDecimal.valueOf(Math.round(rate * 100)));
+                exist.setParticipationScore(java.math.BigDecimal.valueOf(100));
+                exist.setUpdateTime(LocalDateTime.now());
+                learningStatsMapper.updateById(exist);
+            }
+        }
+        // 2. 易错点：错题 stem 匹配知识点，写入 confusion_cluster
+        if (wrongStems != null) {
+            for (String stem : wrongStems) {
+                if (stem == null || stem.isBlank()) continue;
+                Long kpId = matchKnowledgePointId(stem, lessonPackId);
+                if (kpId == null) continue;
+                ConfusionCluster cluster = confusionClusterMapper.selectOne(
+                        new QueryWrapper<ConfusionCluster>()
+                                .eq("lesson_pack_id", lessonPackId).eq("knowledge_point_id", kpId));
+                if (cluster == null) {
+                    cluster = new ConfusionCluster();
+                    cluster.setLessonPackId(lessonPackId);
+                    cluster.setKnowledgePointId(kpId);
+                    KnowledgePoint kp = knowledgePointMapper.selectById(kpId);
+                    cluster.setClusterName(kp == null ? "未分类" : kp.getName());
+                    cluster.setQuestionCount(1);
+                    cluster.setStudentCount(1);
+                    cluster.setSampleQuestions(stem);
+                    cluster.setUpdateTime(LocalDateTime.now());
+                    confusionClusterMapper.insert(cluster);
+                } else {
+                    cluster.setQuestionCount((cluster.getQuestionCount() == null ? 0 : cluster.getQuestionCount()) + 1);
+                    cluster.setStudentCount((cluster.getStudentCount() == null ? 0 : cluster.getStudentCount()) + 1);
+                    String old = cluster.getSampleQuestions() == null ? "" : cluster.getSampleQuestions();
+                    if (!old.contains(stem)) {
+                        cluster.setSampleQuestions(old.isEmpty() ? stem : old + "；" + stem);
+                    }
+                    cluster.setUpdateTime(LocalDateTime.now());
+                    confusionClusterMapper.updateById(cluster);
+                }
+            }
+        }
+    }
+
+    /** 根据题干匹配课次下的知识点，返回知识点 id */
+    private Long matchKnowledgePointId(String stem, Long lessonPackId) {
+        List<KnowledgePoint> points = knowledgePointMapper.selectList(
+                new QueryWrapper<KnowledgePoint>().eq("lesson_pack_id", lessonPackId));
+        Long best = null;
+        int bestScore = 0;
+        for (KnowledgePoint kp : points) {
+            if (kp.getKeywords() == null) continue;
+            int s = 0;
+            for (String kw : kp.getKeywords().split(",")) {
+                if (kw.trim().length() > 0 && stem.contains(kw.trim())) s++;
+            }
+            if (s > bestScore) {
+                bestScore = s;
+                best = kp.getId();
+            }
+        }
+        return best != null ? best : (points.isEmpty() ? null : points.get(0).getId());
     }
 
     /** 简单中文分词：基于课程关键词表 + 常见专业词匹配 */

@@ -24,11 +24,17 @@
       <div v-for="(m, i) in chat.messages" :key="i" class="msg" :class="m.role">
         <div class="msg-bubble" :class="m.role">
           <span v-if="m.role === 'user'">{{ m.content }}</span>
-          <div v-else class="md-body" v-html="renderMarkdown(m.content)"></div>
+          <template v-else>
+            <div v-if="m.reasoning" class="reason-box">
+              <div class="reason-head">💭 思考过程</div>
+              <div class="reason-body">{{ m.reasoning }}</div>
+            </div>
+            <div class="md-body" v-html="renderMarkdown(m.content)"></div>
+          </template>
           <div v-if="m.role === 'assistant' && m.source" class="source-tag">📚 来源：{{ m.source }}</div>
         </div>
       </div>
-      <div v-if="chat.loading" class="msg assistant">
+      <div v-if="chat.loading && !lastAssistantHasContent" class="msg assistant">
         <div class="msg-bubble assistant typing">
           <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
         </div>
@@ -88,6 +94,13 @@ const fileName = ref('')
 const msgBox = ref(null)
 
 const placeholder = computed(() => '输入你的问题，如：cv2.Canny 怎么用？或粘贴报错信息…')
+
+const lastAssistantHasContent = computed(() => {
+  const msgs = chat.messages
+  if (!msgs.length) return false
+  const last = msgs[msgs.length - 1]
+  return last.role === 'assistant' && (last.content || '').length > 0
+})
 
 const suggestions = ['什么是灰度直方图？', '直方图均衡化的原理', 'cv2.Canny 怎么用？', 'BGR 和 RGB 有什么区别？']
 
@@ -252,6 +265,10 @@ watch(() => chat.messages.length, scrollBottom)
   font-size: 14px;
   line-height: 1.6;
 }
+.msg.assistant .msg-bubble {
+  max-width: 100%;
+  width: 100%;
+}
 .msg-bubble.user {
   background: linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%);
   color: #fff;
@@ -268,6 +285,16 @@ watch(() => chat.messages.length, scrollBottom)
   font-size: 11px;
   color: #94A3B8;
 }
+.reason-box {
+  margin-bottom: 8px;
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  border-left: 3px solid #94A3B8;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.reason-head { font-size: 12px; color: #64748B; font-weight: 600; margin-bottom: 4px; }
+.reason-body { font-size: 12px; color: #94A3B8; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
 .typing { display: flex; gap: 4px; align-items: center; padding: 14px 16px; }
 .typing-dot {
   width: 6px; height: 6px; border-radius: 50%; background: #94A3B8;

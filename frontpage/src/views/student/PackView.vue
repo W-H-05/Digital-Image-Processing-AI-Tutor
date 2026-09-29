@@ -3,7 +3,7 @@
     <StudentViewBar />
     <header class="topbar">
       <div class="left">
-        <el-button text @click="$router.push('/home')">← 返回课程地图</el-button>
+        <el-button text @click="$router.push('/home')"><span class="arrow">&lt;</span> 返回课程地图</el-button>
         <span class="sep">|</span>
         <span class="pack-title">{{ pack.title }}</span>
         <span class="pack-no">{{ pack.lessonNo }}</span>
@@ -15,27 +15,32 @@
 
     <div class="layout">
       <!-- 左侧材料目录 -->
-      <aside class="side">
-        <div class="side-title">📂 材料目录</div>
-        <div v-for="m in materials.filter(x => x.materialType !== '作业')" :key="'m' + m.id" class="mat-item" :class="{ active: activeKey === 'm' + m.id }" @click="openMaterial(m)">
+      <aside class="side" :class="{ collapsed: sideCollapsed }">
+        <div class="side-header">
+          <div v-if="!sideCollapsed" class="side-title">📂 材料目录</div>
+          <button class="side-toggle" :title="sideCollapsed ? '展开目录' : '折叠目录'" @click="sideCollapsed = !sideCollapsed">
+            {{ sideCollapsed ? '»' : '«' }}
+          </button>
+        </div>
+        <div v-for="m in materials.filter(x => x.materialType !== '作业')" :key="'m' + m.id" class="mat-item" :class="{ active: activeKey === 'm' + m.id }" @click="openMaterial(m)" :title="sideCollapsed ? m.title : ''">
           <span class="mat-icon">{{ iconFor(m.materialType) }}</span>
-          <div class="mat-info">
+          <div v-if="!sideCollapsed" class="mat-info">
             <div class="mat-name">{{ m.title }}</div>
             <div class="mat-meta">{{ m.materialType }} · {{ m.groupName }}</div>
           </div>
         </div>
         <!-- 交互课件目录项 -->
-        <div v-for="cw in coursewares" :key="'cw' + cw.id" class="mat-item" :class="{ active: activeKey === 'cw' + cw.id }" @click="openCourseware(cw)">
+        <div v-for="cw in coursewares" :key="'cw' + cw.id" class="mat-item" :class="{ active: activeKey === 'cw' + cw.id }" @click="openCourseware(cw)" :title="sideCollapsed ? cw.name : ''">
           <span class="mat-icon">🎛️</span>
-          <div class="mat-info">
+          <div v-if="!sideCollapsed" class="mat-info">
             <div class="mat-name">{{ cw.name }}</div>
             <div class="mat-meta">交互课件 · {{ cw.type }}</div>
           </div>
         </div>
         <!-- 课后作业目录项 -->
-        <div v-for="hw in homeworks" :key="'hw' + hw.id" class="mat-item" :class="{ active: activeKey === 'hw' + hw.id }" @click="openHomework(hw)">
+        <div v-for="hw in homeworks" :key="'hw' + hw.id" class="mat-item" :class="{ active: activeKey === 'hw' + hw.id }" @click="openHomework(hw)" :title="sideCollapsed ? hw.title : ''">
           <span class="mat-icon">📝</span>
-          <div class="mat-info">
+          <div v-if="!sideCollapsed" class="mat-info">
             <div class="mat-name">{{ hw.title }}</div>
             <div class="mat-meta">课后作业 · 共 {{ hw.totalScore }} 分<span v-if="hw.submitted" class="hw-done"> · 已提交</span></div>
           </div>
@@ -61,7 +66,13 @@
             <!-- 图片素材 -->
             <el-image v-if="activeMaterial.filePath && isImage(activeMaterial.fileType)" :src="activeMaterial.filePath" fit="contain" class="mat-image" />
             <!-- HTML/课件 -->
-            <iframe v-if="activeMaterial.filePath && isHtml(activeMaterial.fileType)" :src="activeMaterial.filePath" class="mat-iframe" />
+            <div v-if="activeMaterial.filePath && isHtml(activeMaterial.fileType)" class="html-wrap" :class="{ fullscreen: htmlFullscreen }">
+              <div class="html-toolbar">
+                <span class="html-name">📄 {{ activeMaterial.title }}</span>
+                <button class="html-btn" @click="toggleHtmlFullscreen">{{ htmlFullscreen ? '退出全屏' : '⛶ 全屏' }}</button>
+              </div>
+              <iframe :src="activeMaterial.filePath" class="mat-iframe"></iframe>
+            </div>
             <!-- PPT/PDF 在线预览 -->
             <DocPreview v-if="activeMaterial.filePath && isPreviewable(activeMaterial.fileType)" :material-id="activeMaterial.id" :lesson-pack-id="pack.id" />
             <!-- 其他文件提示 -->
@@ -107,8 +118,11 @@
         </div>
       </main>
 
+      <!-- 可拖拽分隔条 -->
+      <div class="divider" @mousedown="startDrag"></div>
+
       <!-- 右侧 AI 助手 -->
-      <aside class="assistant">
+      <aside class="assistant" :style="{ width: assistantW + 'px' }">
         <AiAssistant :lesson-pack-id="pack.id" />
       </aside>
     </div>
@@ -139,6 +153,9 @@ const homeworks = ref([])
 const hwAnswers = ref({})
 const hwScores = ref({})
 const hwSubmitting = ref({})
+const sideCollapsed = ref(false)
+const assistantW = ref(360)
+const htmlFullscreen = ref(false)
 let materialOpenTime = Date.now()
 
 onMounted(async () => {
@@ -229,6 +246,29 @@ function openHomework(hw) {
   activeCourseware.value = null
 }
 
+/** 拖拽调节 AI 助手宽度 */
+function startDrag(e) {
+  e.preventDefault()
+  const startX = e.clientX
+  const startW = assistantW.value
+  const onMove = (ev) => {
+    const dx = startX - ev.clientX
+    const w = Math.min(600, Math.max(280, startW + dx))
+    assistantW.value = w
+  }
+  const onUp = () => {
+    document.removeEventListener('mousemove', onMove)
+    document.removeEventListener('mouseup', onUp)
+  }
+  document.addEventListener('mousemove', onMove)
+  document.addEventListener('mouseup', onUp)
+}
+
+/** HTML 课件全屏 */
+function toggleHtmlFullscreen() {
+  htmlFullscreen.value = !htmlFullscreen.value
+}
+
 function typeLabel(t) {
   const map = { choice: '选择题', blank: '填空题', code: '代码题' }
   return map[t] || t
@@ -274,15 +314,15 @@ async function submitHw(hw) {
   padding: 12px 20px; background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,0.04);
 }
 .left { display: flex; align-items: center; gap: 10px; }
+.left .arrow { font-weight: 700; font-size: 15px; margin-right: 2px; }
 .sep { color: #CBD5E1; }
 .pack-title { font-weight: 700; }
 .pack-no { color: #4F46E5; font-size: 13px; background: #EEF2FF; padding: 2px 10px; border-radius: 10px; }
 .right { color: #64748B; font-size: 14px; }
 
 .layout {
-  flex: 1; display: grid;
-  grid-template-columns: 250px 1fr 360px;
-  gap: 16px; padding: 16px;
+  flex: 1; display: flex;
+  gap: 0; padding: 16px;
   min-height: 0;
   align-items: stretch;
 }
@@ -291,8 +331,24 @@ async function submitHw(hw) {
   overflow-y: auto; box-shadow: 0 4px 20px rgba(79,70,229,0.06);
   height: 100%;
   min-height: 0;
+  width: 250px;
+  flex-shrink: 0;
+  transition: width 0.2s;
 }
-.side-title { font-weight: 700; margin-bottom: 12px; }
+.side.collapsed {
+  width: 60px;
+  padding: 16px 10px;
+}
+.side-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.side-title { font-weight: 700; }
+.side-toggle {
+  border: none; background: #F1F5F9; color: #64748B; cursor: pointer;
+  width: 24px; height: 24px; border-radius: 6px; font-size: 13px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.side-toggle:hover { background: #E2E8F0; }
+.side.collapsed .side-header { justify-content: center; }
+.side.collapsed .mat-item { justify-content: center; padding: 10px 0; }
 .mat-item {
   display: flex; align-items: center; gap: 10px;
   padding: 10px; border-radius: 10px; cursor: pointer; transition: all 0.2s;
@@ -306,9 +362,11 @@ async function submitHw(hw) {
 
 .main {
   overflow-y: auto; display: flex; flex-direction: column; gap: 16px;
-  height: 100%; min-height: 0;
+  height: 100%; min-height: 0; min-width: 0;
   background: #fff; border-radius: 16px; padding: 20px;
   box-shadow: 0 4px 20px rgba(79,70,229,0.06);
+  flex: 1;
+  margin: 0 12px;
 }
 .placeholder { text-align: center; padding: 60px 20px; color: #94A3B8; }
 .ph-emoji { font-size: 50px; }
@@ -317,6 +375,14 @@ async function submitHw(hw) {
 .desc { white-space: pre-wrap; line-height: 1.8; color: #374151; }
 .mat-image { max-height: 400px; border-radius: 10px; }
 .mat-iframe { width: 100%; height: 500px; border: 1px solid #E2E8F0; border-radius: 10px; }
+.html-wrap { position: relative; border: 1px solid #E2E8F0; border-radius: 10px; overflow: hidden; }
+.html-wrap .html-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: #F8FAFC; border-bottom: 1px solid #E2E8F0; }
+.html-wrap .html-name { font-size: 13px; color: #475569; font-weight: 500; }
+.html-wrap .html-btn { border: 1px solid #E2E8F0; background: #fff; border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; color: #374151; }
+.html-wrap .html-btn:hover { background: #EEF2FF; border-color: #4F46E5; color: #4F46E5; }
+.html-wrap .mat-iframe { border: none; border-radius: 0; display: block; }
+.html-wrap.fullscreen { position: fixed; inset: 0; z-index: 3000; border-radius: 0; background: #fff; }
+.html-wrap.fullscreen .mat-iframe { height: calc(100vh - 41px); }
 .file-tip { padding: 30px; text-align: center; }
 .file-tip a { color: #4F46E5; font-weight: 600; }
 
@@ -341,11 +407,25 @@ async function submitHw(hw) {
 .hw-score-line b { font-size: 18px; }
 .hw-done { color: #16A34A; }
 
-.assistant { height: 100%; min-height: 0; }
+.assistant { height: 100%; min-height: 0; flex-shrink: 0; }
 .assistant :deep(.ai-assistant) { height: 100%; }
+.divider {
+  width: 10px; cursor: col-resize; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; transition: background 0.2s;
+}
+.divider:hover { background: #EEF2FF; }
+.divider::after {
+  content: ''; width: 3px; height: 48px; border-radius: 3px;
+  background: #CBD5E1;
+}
+.divider:hover::after { background: #4F46E5; }
 
 @media (max-width: 1100px) {
-  .layout { grid-template-columns: 220px 1fr; }
-  .assistant { grid-column: 1 / -1; height: 500px; }
+  .layout { flex-wrap: wrap; }
+  .side { width: 100%; height: auto; max-height: 220px; }
+  .main { margin: 12px 0; }
+  .assistant { width: 100% !important; height: 500px; }
+  .divider { display: none; }
 }
 </style>

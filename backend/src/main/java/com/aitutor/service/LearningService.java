@@ -38,4 +38,7 @@ public interface LearningService {
 
     /** 词云：统计某课次 AI 提问的词条频率 */
     List<Map<String, Object>> wordCloud(Long lessonPackId, int limit);
+
+    /** 记录作业提交结果：更新知识掌握度、易错点、异常提醒 */
+    void recordHomeworkResult(Long userId, Long lessonPackId, int score, int totalScore, List<String> wrongStems);
 }

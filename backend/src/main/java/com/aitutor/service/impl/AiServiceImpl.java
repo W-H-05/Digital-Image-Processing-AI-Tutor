@@ -54,6 +54,40 @@ public class AiServiceImpl implements AiService {
         return result;
     }
 
+    @Override
+    public Map<String, String> smartChatStream(String question, Long lessonPackId, java.util.function.Consumer<String> onChunk,
+                                                java.util.function.Consumer<String> onReason) {
+        String type = detectType(question);
+        List<RagHit> hits;
+        String system;
+        String userContent;
+        double temperature;
+        if ("code".equals(type)) {
+            hits = ragService.search(question, 4);
+            system = PromptTemplates.codeHelpSystem(PromptTemplates.buildContext(hits));
+            userContent = "报错信息如下：\n" + question;
+            temperature = 0.3;
+        } else if ("func".equals(type)) {
+            hits = ragService.search(question, 4);
+            system = PromptTemplates.functionQuerySystem(PromptTemplates.buildContext(hits));
+            userContent = "请介绍函数：" + question;
+            temperature = 0.2;
+        } else {
+            hits = ragService.search(question, 5);
+            system = PromptTemplates.ragSystem(PromptTemplates.buildContext(hits));
+            userContent = question;
+            temperature = 0.3;
+        }
+        aiClient.chatStreamFull(List.of(
+                Map.of("role", "system", "content", system),
+                Map.of("role", "user", "content", userContent)
+        ), temperature, onChunk, onReason);
+        Map<String, String> result = new HashMap<>();
+        result.put("type", type);
+        result.put("source", PromptTemplates.buildSource(hits));
+        return result;
+    }
+
     /** 自动识别问题类型：报错诊断 / 函数查询 / 普通问答 */
     private String detectType(String q) {
         if (q == null || q.isBlank()) return "chat";

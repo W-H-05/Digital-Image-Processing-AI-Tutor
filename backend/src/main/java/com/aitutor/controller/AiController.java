@@ -12,12 +12,16 @@ import com.aitutor.service.AiService;
 import com.aitutor.ws.LearningWebSocketHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Slf4j
 @RestController
@@ -29,6 +33,7 @@ public class AiController {
     private final QaRecordMapper qaRecordMapper;
     private final CodeHelpRecordMapper codeHelpRecordMapper;
     private final LearningWebSocketHandler webSocketHandler;
+    private final ExecutorService streamExecutor = Executors.newCachedThreadPool();
 
     /** RAG 文本问答 */
     @RateLimit(key = "ai-chat", limit = 30, windowSec = 3600)
@@ -74,6 +79,62 @@ public class AiController {
         broadcast("code".equals(type) ? "代码排错" : "func".equals(type) ? "函数查询" : "AI 提问",
                 dto.getQuestion().substring(0, Math.min(50, dto.getQuestion().length())), userId);
         return R.ok(result);
+    }
+
+    /** 智能问答（流式 SSE）：自动识别类型，逐字推送，末尾带 source/type */
+    @RateLimit(key = "ai-chat", limit = 30, windowSec = 3600)
+    @PostMapping(value = "/smart/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter smartStream(@RequestBody ChatDTO dto) {
+        Long userId = AuthUtil.currentUserId();
+        SseEmitter emitter = new SseEmitter(120000L);
+        String question = dto.getQuestion();
+        Long lessonPackId = dto.getLessonPackId();
+        streamExecutor.execute(() -> {
+            StringBuilder full = new StringBuilder();
+            StringBuilder reasoning = new StringBuilder();
+            try {
+                Map<String, String> meta = aiService.smartChatStream(question, lessonPackId, chunk -> {
+                    full.append(chunk);
+                    try {
+                        emitter.send(SseEmitter.event().name("chunk").data(chunk));
+                    } catch (Exception ignored) {}
+                }, reason -> {
+                    reasoning.append(reason);
+                    try {
+                        emitter.send(SseEmitter.event().name("reason").data(reason));
+                    } catch (Exception ignored) {}
+                });
+                // 末尾发送 source 和 type
+                Map<String, Object> end = new HashMap<>();
+                end.put("source", meta.get("source"));
+                end.put("type", meta.get("type"));
+                emitter.send(SseEmitter.event().name("end").data(end));
+
+                // 落库
+                QaRecord record = new QaRecord();
+                record.setUserId(userId);
+                record.setLessonPackId(lessonPackId);
+                record.setQuestion(question);
+                record.setAnswer(full.toString());
+                record.setSourceRefs(meta.get("source"));
+                record.setFollowUpCount(0);
+                record.setIsSyncedToTeacher(1);
+                record.setHasImage(0);
+                qaRecordMapper.insert(record);
+
+                String type = meta.getOrDefault("type", "chat");
+                broadcast("code".equals(type) ? "代码排错" : "func".equals(type) ? "函数查询" : "AI 提问",
+                        question.substring(0, Math.min(50, question.length())), userId);
+                emitter.complete();
+            } catch (Exception e) {
+                log.error("流式问答失败", e);
+                try {
+                    emitter.send(SseEmitter.event().name("error").data(e.getMessage()));
+                    emitter.complete();
+                } catch (Exception ignored) {}
+            }
+        });
+        return emitter;
     }
 
     /** 图片分析（新增需求：学生上传图片问 AI 助手） */
