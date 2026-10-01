@@ -48,6 +48,10 @@ app:
   upload-dir: ${UPLOAD_DIR:./uploads}
   teacher-username: ${TEACHER_USERNAME:teacher}
   teacher-password: ${TEACHER_PASSWORD:teacher123}
+  # LibreOffice 可执行文件路径（PPT 预览优先用它转 PDF，服务器需安装 libreoffice-impress）
+  soffice-path: ${SOFFICE_PATH:soffice}
+  # 预览渲染 DPI
+  preview-dpi: ${PREVIEW_DPI:120}
 
 logging:
   level:
