@@ -7,35 +7,33 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.PDFRenderer;
-import org.apache.poi.hslf.usermodel.HSLFSlide;
-import org.apache.poi.hslf.usermodel.HSLFSlideShow;
-import org.apache.poi.xslf.usermodel.XMLSlideShow;
-import org.apache.poi.xslf.usermodel.XSLFSlide;
 import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
-import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.io.FileInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
  * 文档在线预览：PPT/PPTX/PDF 渲染为 PNG 图片序列。
  *
- * 渲染策略（按保真度与速度排序）：
- *  1. PPT/PPTX 优先用 LibreOffice（soffice --headless）转 PDF，再用 PDFBox 逐页渲染 PNG。
- *     相比 POI 的 slide.draw()，LibreOffice 能正确处理 SmartArt/图表/动画/复杂形状，
- *     且转换速度更快、首屏渲染更稳定。
- *  2. LibreOffice 不可用或转换失败时，回退到 POI 直接绘制。
- *  3. PDF 直接用 PDFBox 渲染。
+ * 渲染引擎：LibreOffice（soffice --headless）转 PDF + PDFBox 逐页渲染 PNG。
+ *   - 相比 Apache POI 的 slide.draw()，LibreOffice 能正确处理 SmartArt/图表/动画/复杂形状，
+ *     转换速度快、首屏渲染稳定，适合教师上传后多学生并发预览的场景。
  *
- * 所有渲染结果按「文件名+大小+最后修改时间」做磁盘缓存，同一文件只渲染一次。
+ * 并发策略：
+ *   - 结果磁盘缓存：按「文件名+大小+最后修改时间」定位缓存目录，同一文件只渲染一次。
+ *   - 进程内互斥：同一文件首次渲染时，后续请求复用同一个 Future，等待结果而非再次拉起 soffice，
+ *     避免高并发下多个 soffice 进程互相抢占 profile 导致转换失败。
+ *
+ * 失败降级：LibreOffice 不可用或转换失败时，抛出明确的 BizException，由前端引导用户下载原文件。
  */
 @Slf4j
 @Service
@@ -43,7 +41,9 @@ import java.util.concurrent.TimeUnit;
 public class PreviewServiceImpl implements PreviewService {
 
     private final AppProperties appProperties;
-    private static final int SCALE = 2; // POI 回退渲染放大倍数
+
+    /** 进程内转换互斥：缓存键 -> 正在进行的转换任务 */
+    private final Map<String, java.util.concurrent.CompletableFuture<List<String>>> inFlight = new ConcurrentHashMap<>();
 
     @Override
     public boolean support(String ext) {
@@ -59,60 +59,88 @@ public class PreviewServiceImpl implements PreviewService {
             throw new BizException(404, "文件不存在：" + filePath);
         }
         String ext = extOf(file.getName());
+        if (!support(ext)) {
+            throw new BizException(400, "该文件类型不支持在线预览，请下载查看");
+        }
+
+        String hash = cacheHash(file);
+
+        // 1. 命中磁盘缓存，直接返回
+        List<String> cached = tryLoadCache(hash);
+        if (cached != null) {
+            return cached;
+        }
+
+        // 2. 未命中缓存：同一文件只允许一个转换任务在跑，其余请求等待复用结果
+        java.util.concurrent.CompletableFuture<List<String>> future = inFlight.computeIfAbsent(hash, k ->
+                java.util.concurrent.CompletableFuture.supplyAsync(() -> doRender(file, hash))
+        );
         try {
-            // 磁盘缓存：命中则直接返回，避免重复全量渲染
-            List<String> cached = tryLoadCache(file);
-            if (cached != null) {
-                return cached;
+            List<String> urls = future.get(180, TimeUnit.SECONDS);
+            return urls;
+        } catch (java.util.concurrent.TimeoutException e) {
+            log.error("文档预览转换超时：{}", file.getName());
+            throw new BizException(500, "文档预览生成超时，请稍后重试");
+        } catch (java.util.concurrent.ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof BizException) {
+                throw (BizException) cause;
             }
-            List<BufferedImage> images = renderImages(file, ext);
-            return saveImages(images, file);
+            log.error("文档预览转换失败", cause);
+            throw new BizException(500, "文档预览生成失败，请下载原文件查看");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BizException(500, "文档预览生成被中断，请重试");
+        } finally {
+            // 任务结束后移除互斥记录，允许文件替换后重新转换
+            if (future.isDone()) {
+                inFlight.remove(hash, future);
+            }
+        }
+    }
+
+    /**
+     * 执行转换：LibreOffice 转 PDF → PDFBox 渲染 PNG → 落盘并返回 URL 列表。
+     */
+    private List<String> doRender(File file, String hash) {
+        try {
+            File pdf = file;
+            String ext = extOf(file.getName());
+            // PPT/PPTX 需先转 PDF；PDF 直接用
+            if (!ext.equals("pdf")) {
+                pdf = convertToPdfWithLibreOffice(file);
+                if (pdf == null || !pdf.exists()) {
+                    throw new BizException(500, "PPT 转换失败：请确认服务器已安装 LibreOffice");
+                }
+            }
+            List<BufferedImage> images = renderPdf(pdf);
+            if (images.isEmpty()) {
+                throw new BizException(500, "文档内容为空，无法生成预览");
+            }
+            return saveImages(images, hash);
         } catch (BizException e) {
             throw e;
         } catch (Exception e) {
             log.error("文档预览转换失败", e);
-            throw new BizException(500, "文档预览转换失败：" + e.getMessage());
+            throw new BizException(500, "文档预览生成失败：" + e.getMessage());
         }
-    }
-
-    /**
-     * 渲染主流程：PPT/PPTX 优先 LibreOffice 转 PDF，失败回退 POI；PDF 直接 PDFBox。
-     */
-    private List<BufferedImage> renderImages(File file, String ext) throws Exception {
-        if (ext.equals("pdf")) {
-            return renderPdf(file);
-        }
-        // PPT/PPTX：优先 LibreOffice
-        try {
-            File pdf = convertToPdfWithLibreOffice(file);
-            if (pdf != null && pdf.exists()) {
-                List<BufferedImage> images = renderPdf(pdf);
-                if (!images.isEmpty()) {
-                    return images;
-                }
-            }
-        } catch (Exception e) {
-            log.warn("LibreOffice 转换失败，回退到 POI 渲染：{}", e.getMessage());
-        }
-        // 回退：POI 直接绘制
-        if (ext.equals("pptx")) {
-            return renderPptx(file);
-        }
-        return renderPpt(file);
     }
 
     /**
      * 调用 LibreOffice 无头模式将 PPT/PPTX 转为 PDF。
-     * 返回生成的 PDF 文件，失败返回 null。
+     * 返回生成的 PDF 文件；失败返回 null。
      */
     private File convertToPdfWithLibreOffice(File source) {
-        File outDir = null;
+        Path profile = null;
         try {
-            outDir = Files.createTempDirectory("lo-preview").toFile();
+            File outDir = Files.createTempDirectory("lo-preview").toFile();
             String soffice = appProperties.getSofficePath();
+            // 为每个转换任务指定独立 profile 目录，避免并发时共享 profile 抢占锁
+            profile = Files.createTempDirectory("lo-profile");
             ProcessBuilder pb = new ProcessBuilder(
                     soffice,
                     "--headless",
+                    "-env:UserInstallation=file://" + profile.toAbsolutePath(),
                     "--convert-to", "pdf",
                     "--outdir", outDir.getAbsolutePath(),
                     source.getAbsolutePath()
@@ -135,15 +163,29 @@ public class PreviewServiceImpl implements PreviewService {
         } catch (Exception e) {
             log.warn("LibreOffice 转换异常：{}", e.getMessage());
             return null;
+        } finally {
+            deleteQuietly(profile);
+        }
+    }
+
+    /** 递归删除临时目录，失败忽略 */
+    private void deleteQuietly(Path dir) {
+        if (dir == null) return;
+        try {
+            Files.walk(dir)
+                    .sorted((a, b) -> b.compareTo(a))
+                    .forEach(p -> {
+                        try { Files.deleteIfExists(p); } catch (Exception ignore) {}
+                    });
+        } catch (Exception ignore) {
         }
     }
 
     /**
-     * 计算源文件的缓存键：文件名 + 文件大小 + 最后修改时间，命中则直接返回已渲染的图片 URL。
+     * 从磁盘缓存目录读取已渲染的图片 URL；缓存不完整则返回 null。
      */
-    private List<String> tryLoadCache(File file) {
+    private List<String> tryLoadCache(String hash) {
         try {
-            String hash = cacheHash(file);
             Path cacheDir = Paths.get(appProperties.getUploadDir(), "preview-cache", hash);
             Path manifest = cacheDir.resolve(".manifest");
             if (!Files.exists(cacheDir) || !Files.exists(manifest)) {
@@ -192,52 +234,7 @@ public class PreviewServiceImpl implements PreviewService {
         return result;
     }
 
-    private List<BufferedImage> renderPptx(File file) throws Exception {
-        List<BufferedImage> result = new ArrayList<>();
-        try (XMLSlideShow ppt = new XMLSlideShow(new FileInputStream(file))) {
-            Dimension size = ppt.getPageSize();
-            for (XSLFSlide slide : ppt.getSlides()) {
-                BufferedImage img = new BufferedImage(
-                        (int) size.getWidth() * SCALE, (int) size.getHeight() * SCALE,
-                        BufferedImage.TYPE_INT_RGB);
-                Graphics2D g = img.createGraphics();
-                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-                g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                g.setColor(Color.WHITE);
-                g.fillRect(0, 0, img.getWidth(), img.getHeight());
-                g.scale(SCALE, SCALE);
-                slide.draw(g);
-                g.dispose();
-                result.add(img);
-            }
-        }
-        return result;
-    }
-
-    private List<BufferedImage> renderPpt(File file) throws Exception {
-        List<BufferedImage> result = new ArrayList<>();
-        try (HSLFSlideShow ppt = new HSLFSlideShow(new FileInputStream(file))) {
-            Dimension size = ppt.getPageSize();
-            for (HSLFSlide slide : ppt.getSlides()) {
-                BufferedImage img = new BufferedImage(
-                        (int) size.getWidth() * SCALE, (int) size.getHeight() * SCALE,
-                        BufferedImage.TYPE_INT_RGB);
-                Graphics2D g = img.createGraphics();
-                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g.setColor(Color.WHITE);
-                g.fillRect(0, 0, img.getWidth(), img.getHeight());
-                g.scale(SCALE, SCALE);
-                slide.draw(g);
-                g.dispose();
-                result.add(img);
-            }
-        }
-        return result;
-    }
-
-    private List<String> saveImages(List<BufferedImage> images, File sourceFile) throws Exception {
-        String hash = cacheHash(sourceFile);
+    private List<String> saveImages(List<BufferedImage> images, String hash) throws Exception {
         Path dir = Paths.get(appProperties.getUploadDir(), "preview-cache", hash);
         Files.createDirectories(dir);
         List<String> urls = new ArrayList<>();
