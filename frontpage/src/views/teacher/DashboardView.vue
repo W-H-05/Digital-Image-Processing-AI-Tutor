@@ -355,7 +355,7 @@ function formatTime(t) {
 .conf-fill.err { background: linear-gradient(90deg, #F59E0B, #EF4444); }
 
 /* 练习学情 */
-.practice-panel { margin-bottom: 16px; }
+.practice-panel { margin-bottom: 16px; margin-top: 16px; }
 .practice-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
 .ps-item { text-align: center; background: #FAFBFF; border-radius: 10px; padding: 12px; }
 .ps-num { font-size: 24px; font-weight: 700; color: #4F46E5; }
