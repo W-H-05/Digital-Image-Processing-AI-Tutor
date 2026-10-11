@@ -41,6 +41,7 @@ DIP/
 - Node.js 18+
 - MySQL 8.0
 - Redis 5.0+
+- **LibreOffice**（用于 PPT/PPTX 在线预览，需单独安装，见下方说明）
 
 ### 2. 初始化数据库
 
@@ -91,3 +92,9 @@ npm run dev
 
 - AI 相关功能需在「系统配置」中填入真实 DeepSeek API Key（.env 中为占位符）。
 - 代码题作业因系统边界不自动判分，由教师评阅。
+- **LibreOffice 依赖**：PPT/PPTX 在线预览依赖 LibreOffice（非 Maven/npm 依赖），
+  需在部署机器上单独安装。后端通过 `soffice --headless` 命令将 PPT 转 PDF 再逐页渲染 PNG，
+  安装路径通过 `.env` 的 `SOFFICE_PATH` 配置。
+  - Windows：从 https://www.libreoffice.org 下载安装，或在 .env 配置完整路径（如 `C:\Program Files\LibreOffice\program\soffice.exe`）
+  - Linux：`apt install libreoffice-impress` 或 `yum install libreoffice-impress`（默认路径 `soffice`）
+  - 未安装时 PPT/PPTX 预览会失败，前端会引导用户下载原文件。

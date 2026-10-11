@@ -33,10 +33,11 @@
         <el-table-column prop="lastLoginTime" label="最后登录" min-width="180">
           <template #default="{ row }">{{ row.lastLoginTime ? String(row.lastLoginTime).replace('T',' ').substring(0,16) : '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
             <el-button size="small" type="primary" link @click="showDetail(row)">学习记录</el-button>
             <el-button size="small" type="warning" link @click="reset(row)">重置密码</el-button>
+            <el-button size="small" type="danger" link @click="removeStudent(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -95,7 +96,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  listStudents, importStudents, resetStudentPassword, batchResetStudents, getStudentDetail
+  listStudents, importStudents, resetStudentPassword, batchResetStudents, getStudentDetail, deleteStudent
 } from '../../api'
 
 const students = ref([])
@@ -167,6 +168,19 @@ async function showDetail(row) {
   detailDrawer.value = true
   detail.value = {}
   detail.value = await getStudentDetail(row.id)
+}
+
+async function removeStudent(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定删除学生 ${row.realName}（${row.username}）？\n将同时删除该学生的所有问答、操作、作业、练习、挑战、互评等记录，且不可恢复！`,
+      '删除学生',
+      { type: 'warning', confirmButtonText: '确认删除', confirmButtonClass: 'el-button--danger' }
+    )
+    await deleteStudent(row.id)
+    ElMessage.success('学生及其所有记录已删除')
+    load()
+  } catch (e) {}
 }
 
 function formatTime(t) {

@@ -55,6 +55,7 @@ export const listStudents = () => request.get('/teacher/students')
 export const resetStudentPassword = (id) => request.post(`/teacher/students/${id}/reset`)
 export const batchResetStudents = (ids) => request.post('/teacher/students/batch-reset', { ids })
 export const getStudentDetail = (id) => request.get(`/teacher/students/${id}/detail`)
+export const deleteStudent = (id) => request.delete(`/teacher/students/${id}`)
 
 // 学习埋点
 export const recordOperation = (data) => request.post('/learning/operation', data)
@@ -92,6 +93,16 @@ export const homeworkAnalysis = (id) => request.get(`/teacher/homework/${id}/ana
 export const rejectHomeworkSubmission = (submissionId) => request.delete(`/teacher/homework/submission/${submissionId}`)
 export const deleteHomework = (id) => request.delete(`/teacher/homework/${id}`)
 
+// 练习题
+export const listPracticeForTeacher = (packId) => request.get(`/teacher/practice/${packId}`)
+export const addPracticeQuestion = (packId, data) => request.post(`/teacher/practice/${packId}`, data)
+export const updatePracticeQuestion = (id, data) => request.put(`/teacher/practice/${id}`, data)
+export const deletePracticeQuestion = (id) => request.delete(`/teacher/practice/${id}`)
+export const listPracticeForStudent = (packId) => request.get(`/lesson-packs/${packId}/practice`)
+export const answerPractice = (id, keys) => request.post(`/practice/${id}/answer`, { keys })
+export const recordPractice = (id, data) => request.post(`/practice/${id}/record`, data)
+export const practiceStats = (packId) => request.get(`/teacher/practice/${packId}/stats`)
+
 // 学情看板
 export const dashboardOverview = (params) => request.get('/dashboard/overview', { params })
 export const dashboardTopConfusion = (params) => request.get('/dashboard/top-confusion', { params })
@@ -101,6 +112,7 @@ export const dashboardErrorRanking = (params) => request.get('/dashboard/error-r
 export const dashboardAnomalies = (params) => request.get('/dashboard/anomalies', { params })
 export const dashboardReport = (params) => request.get('/dashboard/report', { params })
 export const dashboardWordCloud = (params) => request.get('/dashboard/word-cloud', { params })
+export const dashboardPractice = (params) => request.get('/dashboard/practice', { params })
 export const selfStats = () => request.get('/learning/self-stats')
 export const listOperations = (params) => request.get('/learning/operations', { params })
 

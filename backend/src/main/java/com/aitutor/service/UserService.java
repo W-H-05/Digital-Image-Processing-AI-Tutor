@@ -28,6 +28,9 @@ public interface UserService {
     /** 学生列表（教师端） */
     List<Map<String, Object>> listStudents();
 
+    /** 删除学生（级联删除所有相关记录） */
+    void deleteStudent(Long studentId);
+
     /** 根据 id 查询 */
     User getById(Long id);
 }

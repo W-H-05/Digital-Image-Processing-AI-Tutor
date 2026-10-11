@@ -20,6 +20,7 @@
           <el-button size="small" @click="openMaterials(pack)">材料管理</el-button>
           <el-button size="small" @click="openCoursewares(pack)">课件管理</el-button>
           <el-button size="small" @click="openHomework(pack)">作业管理</el-button>
+          <el-button size="small" @click="openPractice(pack)">练习管理</el-button>
           <el-button size="small" type="success" v-if="pack.status !== 'PUBLISHED'" @click="publish(pack)">发布</el-button>
           <el-button size="small" type="warning" v-if="pack.status === 'PUBLISHED'" @click="offline(pack)">下架</el-button>
           <el-button size="small" @click="copy(pack)">复制</el-button>
@@ -279,6 +280,91 @@
         </div>
       </template>
     </el-drawer>
+
+    <!-- 练习管理抽屉 -->
+    <el-drawer v-model="practiceDrawer" :title="'练习管理：' + currentPack?.title" size="700px">
+      <!-- 新增/编辑题目表单 -->
+      <div class="section-title">{{ editingPractice ? '✏️ 编辑题目' : '➕ 新增题目（自动题号）' }}</div>
+      <div class="practice-form">
+        <el-form label-width="80px">
+          <el-form-item label="题干">
+            <el-input v-model="practiceForm.stem" type="textarea" :rows="3" placeholder="输入题目内容" />
+          </el-form-item>
+          <el-form-item label="题型">
+            <el-radio-group v-model="practiceForm.isMultiple">
+              <el-radio :value="false">单选题</el-radio>
+              <el-radio :value="true">多选题</el-radio>
+            </el-radio-group>
+          </el-form-item>
+          <el-form-item label="选项">
+            <div class="option-editor">
+              <div v-for="(opt, i) in practiceForm.options" :key="i" class="option-row">
+                <span class="option-key">{{ opt.key }}</span>
+                <el-input v-model="opt.text" :placeholder="'选项 ' + opt.key + ' 内容'" style="flex:1" />
+                <el-checkbox
+                  :model-value="practiceForm.correctKeys.includes(opt.key)"
+                  @change="(v) => toggleCorrectKey(opt.key, v)"
+                  :disabled="practiceForm.options.length < 2"
+                >正确</el-checkbox>
+                <el-button size="small" type="danger" link @click="removeOption(i)" :disabled="practiceForm.options.length <= 2">删除</el-button>
+              </div>
+              <el-button size="small" @click="addOption" :disabled="practiceForm.options.length >= 8">➕ 添加选项</el-button>
+            </div>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="savePracticeQuestion">{{ editingPractice ? '保存修改' : '添加题目' }}</el-button>
+            <el-button v-if="editingPractice" @click="cancelPracticeEdit">取消编辑</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+
+      <el-divider />
+      <div class="section-title">🗂️ 已有题目（{{ practiceQuestions.length }}）</div>
+      <div v-if="practiceQuestions.length === 0" class="empty">暂无题目，请添加</div>
+      <div v-for="q in practiceQuestions" :key="q.id" class="practice-q-item">
+        <div class="practice-q-info">
+          <div class="practice-q-head">
+            <span class="practice-q-no">第 {{ q.questionNo }} 题</span>
+            <el-tag v-if="q.isMultiple === 1" type="warning" size="small">多选</el-tag>
+            <el-tag v-else type="info" size="small">单选</el-tag>
+          </div>
+          <div class="practice-q-stem">{{ q.stem }}</div>
+          <div class="practice-q-opts">
+            <span v-for="o in q.options" :key="o.key" class="pq-opt" :class="{ correct: (q.correctKeys || []).includes(o.key) }">
+              {{ o.key }}. {{ o.text }}
+            </span>
+          </div>
+        </div>
+        <div class="practice-q-actions">
+          <el-button size="small" @click="editPracticeQuestion(q)">编辑</el-button>
+          <el-button size="small" type="danger" link @click="removePracticeQuestion(q)">删除</el-button>
+        </div>
+      </div>
+
+      <el-divider />
+      <div class="section-title">📊 练习学情</div>
+      <div v-if="practiceStatsData" class="practice-stats">
+        <div class="ps-row">
+          <span>题目数：<b>{{ practiceStatsData.questionCount }}</b></span>
+          <span>总作答：<b>{{ (practiceStatsData.totalCorrect || 0) + (practiceStatsData.totalWrong || 0) }}</b> 次</span>
+          <span>正确率：<b :class="{ good: practiceStatsData.totalAccuracy >= 60, bad: practiceStatsData.totalAccuracy < 60 }">{{ practiceStatsData.totalAccuracy }}%</b></span>
+        </div>
+        <div v-if="practiceStatsData.perQuestion?.length" class="ps-perq">
+          <div v-for="q in practiceStatsData.perQuestion" :key="q.questionId" class="ps-q">
+            <span class="ps-q-no">第{{ q.questionNo }}题</span>
+            <div class="ps-bar"><div class="ps-fill" :class="{ good: q.accuracy >= 60, bad: q.accuracy < 60 }" :style="{ width: q.accuracy + '%' }"></div></div>
+            <span class="ps-q-acc">{{ q.accuracy }}%</span>
+          </div>
+        </div>
+        <div v-if="practiceStatsData.wrongReasons?.length" class="ps-reasons">
+          <div class="section-title" style="margin-top:8px">💬 错因汇总</div>
+          <div v-for="(r, i) in practiceStatsData.wrongReasons" :key="i" class="ps-reason">
+            <span class="ps-reason-count">{{ r.count }}人</span>
+            <span class="ps-reason-text">{{ r.reason }}</span>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
@@ -291,7 +377,8 @@ import {
   listMaterials, addTextMaterial, updateMaterial, deleteMaterial, uploadMaterial,
   sortMaterials, getMaterialVersions, restoreMaterialVersion,
   listCoursewares, createCourseware, updateCourseware, deleteCourseware, uploadCoursewareSample,
-  parseHomeworkFile, saveHomework as apiSaveHomework, listHomeworkForTeacher, deleteHomework, listHomeworkSubmissions, rejectHomeworkSubmission, homeworkAnalysis
+  parseHomeworkFile, saveHomework as apiSaveHomework, listHomeworkForTeacher, deleteHomework, listHomeworkSubmissions, rejectHomeworkSubmission, homeworkAnalysis,
+  listPracticeForTeacher, addPracticeQuestion, updatePracticeQuestion, deletePracticeQuestion, practiceStats
 } from '../../api'
 
 const packs = ref([])
@@ -315,6 +402,14 @@ const analysisData = ref(null)
 const hwTitle = ref('')
 const hwFileName = ref('')
 const hwFileRaw = ref(null)
+// 练习管理
+const practiceDrawer = ref(false)
+const practiceQuestions = ref([])
+const practiceStatsData = ref(null)
+const editingPractice = ref(false)
+const editingPracticeId = ref(null)
+const practiceForm = ref({ stem: '', isMultiple: false, options: [], correctKeys: [] })
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 const parsedQuestions = ref([])
 const parsedTotal = ref(0)
 const currentHomework = ref(null)
@@ -566,6 +661,106 @@ async function rejectSubmission(s) {
   } catch (e) {}
 }
 
+// ==================== 练习管理 ====================
+async function openPractice(pack) {
+  currentPack.value = pack
+  practiceDrawer.value = true
+  resetPracticeForm()
+  await loadPractice()
+}
+
+function resetPracticeForm() {
+  editingPractice.value = false
+  editingPracticeId.value = null
+  practiceForm.value = { stem: '', isMultiple: false, options: [], correctKeys: [] }
+  // 默认两个选项 A、B
+  addOption()
+  addOption()
+}
+
+function addOption() {
+  const next = LETTERS[practiceForm.value.options.length]
+  if (!next) return
+  practiceForm.value.options.push({ key: next, text: '' })
+}
+
+function removeOption(i) {
+  const removed = practiceForm.value.options.splice(i, 1)[0]
+  // 移除对应的正确项
+  const ci = practiceForm.value.correctKeys.indexOf(removed.key)
+  if (ci >= 0) practiceForm.value.correctKeys.splice(ci, 1)
+}
+
+function toggleCorrectKey(key, checked) {
+  const keys = practiceForm.value.correctKeys
+  const idx = keys.indexOf(key)
+  if (practiceForm.value.isMultiple) {
+    // 多选：可勾选多个
+    if (checked && idx < 0) keys.push(key)
+    else if (!checked && idx >= 0) keys.splice(idx, 1)
+  } else {
+    // 单选：只能一个正确项
+    keys.splice(0, keys.length)
+    if (checked) keys.push(key)
+  }
+}
+
+async function loadPractice() {
+  practiceQuestions.value = await listPracticeForTeacher(currentPack.value.id)
+  practiceStatsData.value = await practiceStats(currentPack.value.id).catch(() => null)
+}
+
+async function savePracticeQuestion() {
+  const stem = practiceForm.value.stem.trim()
+  if (!stem) { ElMessage.warning('请输入题干'); return }
+  const options = practiceForm.value.options.filter(o => o.text.trim())
+  if (options.length < 2) { ElMessage.warning('至少需要 2 个有内容的选项'); return }
+  if (practiceForm.value.correctKeys.length === 0) { ElMessage.warning('请设置正确答案'); return }
+  const payload = {
+    stem,
+    options: options.map(o => ({ key: o.key, text: o.text.trim() })),
+    correctKeys: practiceForm.value.correctKeys,
+    isMultiple: practiceForm.value.isMultiple
+  }
+  if (editingPractice.value) {
+    await updatePracticeQuestion(editingPracticeId.value, payload)
+    ElMessage.success('已更新')
+  } else {
+    await addPracticeQuestion(currentPack.value.id, payload)
+    ElMessage.success('已添加')
+  }
+  resetPracticeForm()
+  addOption()
+  addOption()
+  await loadPractice()
+}
+
+function editPracticeQuestion(q) {
+  editingPractice.value = true
+  editingPracticeId.value = q.id
+  practiceForm.value = {
+    stem: q.stem,
+    isMultiple: q.isMultiple === 1,
+    options: (q.options || []).map(o => ({ key: o.key, text: o.text })),
+    correctKeys: [...(q.correctKeys || [])]
+  }
+}
+
+function cancelPracticeEdit() {
+  resetPracticeForm()
+  addOption()
+  addOption()
+}
+
+async function removePracticeQuestion(q) {
+  try {
+    await ElMessageBox.confirm(`确定删除第 ${q.questionNo} 题？删除后题号自动重排`, '删除', { type: 'warning' })
+    await deletePracticeQuestion(q.id)
+    ElMessage.success('已删除')
+    await loadPractice()
+  } catch (e) {}
+}
+
 function typeLabel(t) {
   const map = { choice: '单选题', blank: '填空题', code: '代码题' }
   return map[t] || t
@@ -727,4 +922,41 @@ async function removeCourseware(cw) {
 .ana-ans-val { color: #1F2937; }
 .ana-ans-val.wrong { color: #DC2626; }
 .ana-none { color: #94A3B8; font-size: 12px; }
+
+/* 练习管理 */
+.option-editor { width: 100%; }
+.option-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.option-key {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #EEF2FF; color: #4F46E5;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; flex-shrink: 0;
+}
+.practice-form { background: #FAFBFF; padding: 16px; border-radius: 10px; }
+.practice-q-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F1F5F9; }
+.practice-q-info { flex: 1; }
+.practice-q-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.practice-q-no { font-weight: 700; color: #4F46E5; }
+.practice-q-stem { color: #1F2937; font-size: 14px; margin-bottom: 6px; }
+.practice-q-opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.pq-opt { font-size: 12px; background: #F1F5F9; color: #475569; padding: 2px 8px; border-radius: 8px; }
+.pq-opt.correct { background: #ECFDF5; color: #10B981; border: 1px solid #10B981; }
+.practice-q-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.practice-stats { background: #FAFBFF; padding: 14px; border-radius: 10px; }
+.ps-row { display: flex; gap: 20px; margin-bottom: 12px; font-size: 14px; color: #475569; }
+.ps-row b { font-size: 16px; }
+.ps-row b.good { color: #10B981; }
+.ps-row b.bad { color: #EF4444; }
+.ps-perq { display: flex; flex-direction: column; gap: 8px; }
+.ps-q { display: flex; align-items: center; gap: 10px; }
+.ps-q-no { font-size: 12px; color: #64748B; white-space: nowrap; }
+.ps-bar { flex: 1; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden; }
+.ps-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
+.ps-fill.good { background: #10B981; }
+.ps-fill.bad { background: #EF4444; }
+.ps-q-acc { font-size: 12px; color: #475569; min-width: 44px; text-align: right; }
+.ps-reasons { margin-top: 10px; }
+.ps-reason { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px dashed #E2E8F0; font-size: 13px; }
+.ps-reason-count { color: #EF4444; font-weight: 600; flex-shrink: 0; }
+.ps-reason-text { color: #475569; }
 </style>

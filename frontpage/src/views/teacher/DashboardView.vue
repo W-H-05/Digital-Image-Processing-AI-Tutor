@@ -66,6 +66,34 @@
       </div>
     </div>
 
+    <!-- 练习学情 -->
+    <div class="panel card practice-panel">
+      <h3>🎯 练习学情</h3>
+      <div class="practice-summary">
+        <div class="ps-item"><div class="ps-num">{{ practice.questionCount || 0 }}</div><div class="ps-label">题目数</div></div>
+        <div class="ps-item"><div class="ps-num">{{ (practice.totalCorrect || 0) + (practice.totalWrong || 0) }}</div><div class="ps-label">总作答</div></div>
+        <div class="ps-item">
+          <div class="ps-num" :class="{ good: practice.totalAccuracy >= 60, bad: practice.totalAccuracy < 60 }">{{ practice.totalAccuracy || 0 }}%</div>
+          <div class="ps-label">正确率</div>
+        </div>
+        <div class="ps-item"><div class="ps-num">{{ practice.totalCorrect || 0 }}</div><div class="ps-label">答对</div></div>
+      </div>
+      <div v-if="practice.perQuestion?.length" class="practice-perq">
+        <div v-for="q in practice.perQuestion" :key="q.questionId" class="practice-q">
+          <span class="practice-q-no" :title="q.stem">第{{ q.questionNo }}题</span>
+          <div class="practice-bar"><div class="practice-fill" :class="{ good: q.accuracy >= 60, bad: q.accuracy < 60 }" :style="{ width: q.accuracy + '%' }"></div></div>
+          <span class="practice-q-acc">{{ q.accuracy }}%</span>
+        </div>
+      </div>
+      <div v-if="practice.wrongReasons?.length" class="practice-reasons">
+        <div class="practice-reasons-title">💬 错因汇总</div>
+        <div v-for="(r, i) in practice.wrongReasons" :key="i" class="practice-reason">
+          <span class="practice-reason-count">{{ r.count }}次</span>
+          <span class="practice-reason-text">{{ r.reason }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- 易错点排行 + 异常提醒 -->
     <div class="grid grid-bottom">
       <div class="panel card">
@@ -132,7 +160,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import * as echarts from 'echarts'
 import {
   dashboardOverview, dashboardTopConfusion, dashboardMastery, dashboardStream,
-  dashboardErrorRanking, dashboardAnomalies, dashboardReport, dashboardWordCloud, listLessonPacks
+  dashboardErrorRanking, dashboardAnomalies, dashboardReport, dashboardWordCloud,
+  dashboardPractice, listLessonPacks
 } from '../../api'
 
 const overview = ref({})
@@ -146,6 +175,7 @@ const masteryChart = ref(null)
 const packs = ref([])
 const currentPackId = ref(null)
 const wordCloud = ref([])
+const practice = ref({})
 let chart = null
 let ws = null
 let timer = null
@@ -168,14 +198,15 @@ async function refresh() {
   try {
     const params = {}
     if (currentPackId.value) params.lessonPackId = currentPackId.value
-    const [ov, conf, master, st, err, ano, wc] = await Promise.all([
+    const [ov, conf, master, st, err, ano, wc, pc] = await Promise.all([
       dashboardOverview(params),
       dashboardTopConfusion(params),
       dashboardMastery(params),
       dashboardStream({ limit: 20 }),
       dashboardErrorRanking(params),
       dashboardAnomalies(params),
-      dashboardWordCloud(params)
+      dashboardWordCloud(params),
+      dashboardPractice(params)
     ])
     overview.value = ov
     confusion.value = conf
@@ -183,6 +214,7 @@ async function refresh() {
     errors.value = err
     anomalies.value = ano
     wordCloud.value = wc
+    practice.value = pc
     renderMastery(master)
   } catch (e) {}
 }
@@ -321,6 +353,28 @@ function formatTime(t) {
 
 .grid-bottom { margin-top: 16px; }
 .conf-fill.err { background: linear-gradient(90deg, #F59E0B, #EF4444); }
+
+/* 练习学情 */
+.practice-panel { margin-bottom: 16px; }
+.practice-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+.ps-item { text-align: center; background: #FAFBFF; border-radius: 10px; padding: 12px; }
+.ps-num { font-size: 24px; font-weight: 700; color: #4F46E5; }
+.ps-num.good { color: #10B981; }
+.ps-num.bad { color: #EF4444; }
+.ps-label { font-size: 12px; color: #64748B; margin-top: 2px; }
+.practice-perq { display: flex; flex-direction: column; gap: 8px; }
+.practice-q { display: flex; align-items: center; gap: 10px; }
+.practice-q-no { font-size: 12px; color: #64748B; white-space: nowrap; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+.practice-bar { flex: 1; height: 8px; background: #E2E8F0; border-radius: 4px; overflow: hidden; }
+.practice-fill { height: 100%; border-radius: 4px; transition: width 0.5s; }
+.practice-fill.good { background: linear-gradient(90deg, #34D399, #10B981); }
+.practice-fill.bad { background: linear-gradient(90deg, #F87171, #EF4444); }
+.practice-q-acc { font-size: 12px; color: #475569; min-width: 44px; text-align: right; }
+.practice-reasons { margin-top: 14px; }
+.practice-reasons-title { font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 6px; }
+.practice-reason { display: flex; gap: 8px; padding: 5px 0; font-size: 13px; border-bottom: 1px dashed #E2E8F0; }
+.practice-reason-count { color: #EF4444; font-weight: 600; flex-shrink: 0; }
+.practice-reason-text { color: #475569; }
 .anomaly-item { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid #F8FAFC; font-size: 13px; flex-wrap: wrap; }
 .anomaly-tag { background: #FEF2F2; color: #DC2626; padding: 2px 8px; border-radius: 8px; font-size: 12px; }
 .anomaly-name { font-weight: 500; color: #1F2937; }

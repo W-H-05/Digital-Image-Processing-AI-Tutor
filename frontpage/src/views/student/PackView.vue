@@ -22,7 +22,7 @@
             {{ sideCollapsed ? '»' : '«' }}
           </button>
         </div>
-        <div v-for="m in materials.filter(x => x.materialType !== '作业')" :key="'m' + m.id" class="mat-item" :class="{ active: activeKey === 'm' + m.id }" @click="openMaterial(m)" :title="sideCollapsed ? m.title : ''">
+        <div v-for="m in materials.filter(x => x.materialType !== '作业')" :key="'m' + m.id" class="mat-item" :class="{ active: activeKey === 'm' + m.id, disabled: practiceLocked }" @click="openMaterial(m)" :title="sideCollapsed ? m.title : ''">
           <span class="mat-icon">{{ iconFor(m.materialType) }}</span>
           <div v-if="!sideCollapsed" class="mat-info">
             <div class="mat-name">{{ m.title }}</div>
@@ -30,7 +30,7 @@
           </div>
         </div>
         <!-- 交互课件目录项 -->
-        <div v-for="cw in coursewares" :key="'cw' + cw.id" class="mat-item" :class="{ active: activeKey === 'cw' + cw.id }" @click="openCourseware(cw)" :title="sideCollapsed ? cw.name : ''">
+        <div v-for="cw in coursewares" :key="'cw' + cw.id" class="mat-item" :class="{ active: activeKey === 'cw' + cw.id, disabled: practiceLocked }" @click="openCourseware(cw)" :title="sideCollapsed ? cw.name : ''">
           <span class="mat-icon">🎛️</span>
           <div v-if="!sideCollapsed" class="mat-info">
             <div class="mat-name">{{ cw.name }}</div>
@@ -38,11 +38,19 @@
           </div>
         </div>
         <!-- 课后作业目录项 -->
-        <div v-for="hw in homeworks" :key="'hw' + hw.id" class="mat-item" :class="{ active: activeKey === 'hw' + hw.id }" @click="openHomework(hw)" :title="sideCollapsed ? hw.title : ''">
+        <div v-for="hw in homeworks" :key="'hw' + hw.id" class="mat-item" :class="{ active: activeKey === 'hw' + hw.id, disabled: practiceLocked }" @click="openHomework(hw)" :title="sideCollapsed ? hw.title : ''">
           <span class="mat-icon">📝</span>
           <div v-if="!sideCollapsed" class="mat-info">
             <div class="mat-name">{{ hw.title }}</div>
             <div class="mat-meta">课后作业 · 共 {{ hw.totalScore }} 分<span v-if="hw.submitted" class="hw-done"> · 已提交</span></div>
+          </div>
+        </div>
+        <!-- 随堂练习目录项 -->
+        <div class="mat-item" :class="{ active: activeKey === 'practice' }" @click="openPractice" :title="sideCollapsed ? '随堂练习' : ''">
+          <span class="mat-icon">🎯</span>
+          <div v-if="!sideCollapsed" class="mat-info">
+            <div class="mat-name">随堂练习</div>
+            <div class="mat-meta">选择题 · 即时反馈</div>
           </div>
         </div>
       </aside>
@@ -116,6 +124,11 @@
             </div>
           </div>
         </div>
+
+        <!-- 随堂练习内容 -->
+        <div v-else-if="activeKey === 'practice'" class="practice-section">
+          <PracticeLab :lesson-pack-id="pack.id" @lock="practiceLocked = true" @unlock="practiceLocked = false" @back="onPracticeExit" />
+        </div>
       </main>
 
       <!-- 可拖拽分隔条 -->
@@ -123,7 +136,12 @@
 
       <!-- 右侧 AI 助手 -->
       <aside class="assistant" :style="{ width: assistantW + 'px' }">
-        <AiAssistant :lesson-pack-id="pack.id" />
+        <div v-if="practiceLocked" class="ai-disabled">
+          <div class="ai-disabled-icon">🚫</div>
+          <div class="ai-disabled-text">练习模式下 AI 助手已禁用</div>
+          <div class="ai-disabled-sub">独立思考，完成练习后再向 AI 求助吧</div>
+        </div>
+        <AiAssistant v-else :lesson-pack-id="pack.id" />
       </aside>
     </div>
   </div>
@@ -135,6 +153,7 @@ import { useRoute } from 'vue-router'
 import AiAssistant from '../../components/AiAssistant.vue'
 import CoursewareLab from '../../components/CoursewareLab.vue'
 import DocPreview from '../../components/DocPreview.vue'
+import PracticeLab from '../../components/PracticeLab.vue'
 import StudentViewBar from '../../components/StudentViewBar.vue'
 import { useUserStore } from '../../store/user'
 import { getLessonPack, listMaterials, listCoursewares, recordOperation, listHomeworkForStudent, submitHomework } from '../../api'
@@ -156,6 +175,7 @@ const hwSubmitting = ref({})
 const sideCollapsed = ref(false)
 const assistantW = ref(360)
 const htmlFullscreen = ref(false)
+const practiceLocked = ref(false)
 let materialOpenTime = Date.now()
 
 onMounted(async () => {
@@ -193,6 +213,10 @@ function isPreviewable(ft) {
 }
 
 async function openMaterial(m) {
+  if (practiceLocked.value) {
+    ElMessage.warning('练习中，请先完成练习再切换')
+    return
+  }
   // 上报上一个材料的停留时长（关闭事件）
   if (activeKey.value && activeKey.value.startsWith('m') && activeMaterial.value && activeMaterial.value.id !== m.id) {
     const stayMs = Date.now() - materialOpenTime
@@ -227,6 +251,10 @@ async function openMaterial(m) {
 }
 
 function openCourseware(cw) {
+  if (practiceLocked.value) {
+    ElMessage.warning('练习中，请先完成练习再切换')
+    return
+  }
   activeKey.value = 'cw' + cw.id
   activeCourseware.value = cw
   activeMaterial.value = null
@@ -240,10 +268,30 @@ function openCourseware(cw) {
 }
 
 function openHomework(hw) {
+  if (practiceLocked.value) {
+    ElMessage.warning('练习中，请先完成练习再切换')
+    return
+  }
   activeKey.value = 'hw' + hw.id
   activeHomework.value = hw
   activeMaterial.value = null
   activeCourseware.value = null
+}
+
+function openPractice() {
+  activeKey.value = 'practice'
+  activeMaterial.value = null
+  activeCourseware.value = null
+  activeHomework.value = null
+}
+
+/** 练习通关或主动退出：解除目录锁定，回到占位提示 */
+function onPracticeExit() {
+  practiceLocked.value = false
+  activeKey.value = ''
+  activeMaterial.value = null
+  activeCourseware.value = null
+  activeHomework.value = null
 }
 
 /** 拖拽调节 AI 助手宽度 */
@@ -356,6 +404,7 @@ async function submitHw(hw) {
 }
 .mat-item:hover { background: #F8FAFC; }
 .mat-item.active { background: #EEF2FF; }
+.mat-item.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 .mat-icon { font-size: 20px; }
 .mat-name { font-size: 14px; font-weight: 500; color: #1F2937; }
 .mat-meta { font-size: 11px; color: #94A3B8; }
@@ -390,6 +439,7 @@ async function submitHw(hw) {
 .cw-item { margin-bottom: 16px; }
 
 .hw-section { margin-top: 0; }
+.practice-section { margin-top: 0; }
 .hw-card { margin-bottom: 16px; padding: 18px; }
 .hw-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
 .hw-title { font-weight: 600; font-size: 16px; }
@@ -409,6 +459,16 @@ async function submitHw(hw) {
 
 .assistant { height: 100%; min-height: 0; flex-shrink: 0; }
 .assistant :deep(.ai-assistant) { height: 100%; }
+.ai-disabled {
+  height: 100%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: #fff; border-radius: 16px; padding: 24px;
+  box-shadow: 0 4px 20px rgba(79,70,229,0.08);
+  text-align: center;
+}
+.ai-disabled-icon { font-size: 44px; margin-bottom: 12px; }
+.ai-disabled-text { font-weight: 600; color: #475569; font-size: 15px; }
+.ai-disabled-sub { color: #94A3B8; font-size: 12px; margin-top: 6px; line-height: 1.6; }
 .divider {
   width: 10px; cursor: col-resize; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;

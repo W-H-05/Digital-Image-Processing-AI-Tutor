@@ -33,6 +33,14 @@ public class UserController {
         return R.ok();
     }
 
+    /** 删除学生（级联删除所有相关记录） */
+    @DeleteMapping("/{id}")
+    public R<Void> deleteStudent(@PathVariable Long id) {
+        AuthUtil.requireTeacher();
+        userService.deleteStudent(id);
+        return R.ok();
+    }
+
     @PostMapping("/batch-reset")
     public R<Map<String, Object>> batchReset(@RequestBody Map<String, List<Long>> body) {
         AuthUtil.requireTeacher();

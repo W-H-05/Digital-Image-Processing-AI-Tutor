@@ -28,6 +28,10 @@ public class UserServiceImpl implements UserService {
     private final ChallengeSubmissionMapper challengeSubmissionMapper;
     private final PeerReviewMapper peerReviewMapper;
     private final StudentMaterialViewMapper studentMaterialViewMapper;
+    private final CodeHelpRecordMapper codeHelpRecordMapper;
+    private final HomeworkSubmissionMapper homeworkSubmissionMapper;
+    private final LearningStatsMapper learningStatsMapper;
+    private final PracticeRecordMapper practiceRecordMapper;
     private final OnlineService onlineService;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -197,5 +201,29 @@ public class UserServiceImpl implements UserService {
     @Override
     public User getById(Long id) {
         return userMapper.selectById(id);
+    }
+
+    @Override
+    public void deleteStudent(Long studentId) {
+        User user = userMapper.selectById(studentId);
+        if (user == null) throw new BizException(404, "学生不存在");
+        if (!Constants.ROLE_STUDENT.equals(user.getRole())) {
+            throw new BizException(400, "仅可删除学生账号");
+        }
+        // 级联删除所有相关记录
+        qaRecordMapper.delete(new QueryWrapper<QaRecord>().eq("user_id", studentId));
+        studentOperationMapper.delete(new QueryWrapper<StudentOperation>().eq("user_id", studentId));
+        challengeSubmissionMapper.delete(new QueryWrapper<ChallengeSubmission>().eq("user_id", studentId));
+        peerReviewMapper.delete(new QueryWrapper<PeerReview>().eq("reviewer_id", studentId)
+                .or().eq("reviewee_id", studentId));
+        studentMaterialViewMapper.delete(new QueryWrapper<StudentMaterialView>().eq("user_id", studentId));
+        codeHelpRecordMapper.delete(new QueryWrapper<CodeHelpRecord>().eq("user_id", studentId));
+        homeworkSubmissionMapper.delete(new QueryWrapper<HomeworkSubmission>().eq("user_id", studentId));
+        learningStatsMapper.delete(new QueryWrapper<LearningStats>().eq("user_id", studentId));
+        practiceRecordMapper.delete(new QueryWrapper<PracticeRecord>().eq("user_id", studentId));
+        // 最后删除用户
+        userMapper.deleteById(studentId);
+        // 清除在线状态
+        onlineService.remove(studentId);
     }
 }
