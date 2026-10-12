@@ -290,6 +290,20 @@
           <el-form-item label="题干">
             <el-input v-model="practiceForm.stem" type="textarea" :rows="3" placeholder="输入题目内容" />
           </el-form-item>
+          <el-form-item label="题干图片">
+            <div class="stem-image-upload">
+              <el-upload
+                :show-file-list="false"
+                :auto-upload="false"
+                accept="image/*"
+                :on-change="(f) => onStemImage(f)"
+              >
+                <el-button size="small">🖼 上传题干图片</el-button>
+              </el-upload>
+              <img v-if="practiceForm.stemImage" :src="practiceForm.stemImage" class="stem-image-preview" />
+              <el-button v-if="practiceForm.stemImage" size="small" type="danger" link @click="practiceForm.stemImage = ''">移除</el-button>
+            </div>
+          </el-form-item>
           <el-form-item label="题型">
             <el-radio-group v-model="practiceForm.isMultiple">
               <el-radio :value="false">单选题</el-radio>
@@ -300,7 +314,21 @@
             <div class="option-editor">
               <div v-for="(opt, i) in practiceForm.options" :key="i" class="option-row">
                 <span class="option-key">{{ opt.key }}</span>
-                <el-input v-model="opt.text" :placeholder="'选项 ' + opt.key + ' 内容'" style="flex:1" />
+                <div class="option-main">
+                  <el-input v-model="opt.text" :placeholder="'选项 ' + opt.key + ' 内容'" />
+                  <div class="option-image-row">
+                    <el-upload
+                      :show-file-list="false"
+                      :auto-upload="false"
+                      accept="image/*"
+                      :on-change="(f) => onOptionImage(opt, f)"
+                    >
+                      <el-button size="small">🖼 图</el-button>
+                    </el-upload>
+                    <img v-if="opt.image" :src="opt.image" class="option-image-preview" />
+                    <el-button v-if="opt.image" size="small" type="danger" link @click="opt.image = ''">移除</el-button>
+                  </div>
+                </div>
                 <el-checkbox
                   :model-value="practiceForm.correctKeys.includes(opt.key)"
                   @change="(v) => toggleCorrectKey(opt.key, v)"
@@ -329,9 +357,10 @@
             <el-tag v-else type="info" size="small">单选</el-tag>
           </div>
           <div class="practice-q-stem">{{ q.stem }}</div>
+          <img v-if="q.stemImage" :src="q.stemImage" class="practice-q-stem-img" />
           <div class="practice-q-opts">
             <span v-for="o in q.options" :key="o.key" class="pq-opt" :class="{ correct: (q.correctKeys || []).includes(o.key) }">
-              {{ o.key }}. {{ o.text }}
+              {{ o.key }}. {{ o.text }}<img v-if="o.image" :src="o.image" class="pq-opt-img" />
             </span>
           </div>
         </div>
@@ -378,7 +407,7 @@ import {
   sortMaterials, getMaterialVersions, restoreMaterialVersion,
   listCoursewares, createCourseware, updateCourseware, deleteCourseware, uploadCoursewareSample,
   parseHomeworkFile, saveHomework as apiSaveHomework, listHomeworkForTeacher, deleteHomework, listHomeworkSubmissions, rejectHomeworkSubmission, homeworkAnalysis,
-  listPracticeForTeacher, addPracticeQuestion, updatePracticeQuestion, deletePracticeQuestion, practiceStats
+  listPracticeForTeacher, addPracticeQuestion, updatePracticeQuestion, deletePracticeQuestion, practiceStats, uploadPracticeImage
 } from '../../api'
 
 const packs = ref([])
@@ -672,7 +701,7 @@ async function openPractice(pack) {
 function resetPracticeForm() {
   editingPractice.value = false
   editingPracticeId.value = null
-  practiceForm.value = { stem: '', isMultiple: false, options: [], correctKeys: [] }
+  practiceForm.value = { stem: '', stemImage: '', isMultiple: false, options: [], correctKeys: [] }
   // 默认两个选项 A、B
   addOption()
   addOption()
@@ -681,7 +710,7 @@ function resetPracticeForm() {
 function addOption() {
   const next = LETTERS[practiceForm.value.options.length]
   if (!next) return
-  practiceForm.value.options.push({ key: next, text: '' })
+  practiceForm.value.options.push({ key: next, text: '', image: '' })
 }
 
 function removeOption(i) {
@@ -705,6 +734,32 @@ function toggleCorrectKey(key, checked) {
   }
 }
 
+/** 上传题干图片 */
+async function onStemImage(file) {
+  const raw = file.raw
+  if (!raw || !raw.type.startsWith('image/')) { ElMessage.warning('请选择图片文件'); return }
+  const fd = new FormData()
+  fd.append('file', raw)
+  try {
+    const res = await uploadPracticeImage(fd)
+    practiceForm.value.stemImage = res.url
+    ElMessage.success('题干图片已上传')
+  } catch (e) {}
+}
+
+/** 上传选项图片 */
+async function onOptionImage(opt, file) {
+  const raw = file.raw
+  if (!raw || !raw.type.startsWith('image/')) { ElMessage.warning('请选择图片文件'); return }
+  const fd = new FormData()
+  fd.append('file', raw)
+  try {
+    const res = await uploadPracticeImage(fd)
+    opt.image = res.url
+    ElMessage.success('选项图片已上传')
+  } catch (e) {}
+}
+
 async function loadPractice() {
   practiceQuestions.value = await listPracticeForTeacher(currentPack.value.id)
   practiceStatsData.value = await practiceStats(currentPack.value.id).catch(() => null)
@@ -712,13 +767,15 @@ async function loadPractice() {
 
 async function savePracticeQuestion() {
   const stem = practiceForm.value.stem.trim()
-  if (!stem) { ElMessage.warning('请输入题干'); return }
-  const options = practiceForm.value.options.filter(o => o.text.trim())
+  const stemImage = practiceForm.value.stemImage || ''
+  if (!stem && !stemImage) { ElMessage.warning('请输入题干或上传题干图片'); return }
+  const options = practiceForm.value.options.filter(o => o.text.trim() || o.image)
   if (options.length < 2) { ElMessage.warning('至少需要 2 个有内容的选项'); return }
   if (practiceForm.value.correctKeys.length === 0) { ElMessage.warning('请设置正确答案'); return }
   const payload = {
     stem,
-    options: options.map(o => ({ key: o.key, text: o.text.trim() })),
+    stemImage,
+    options: options.map(o => ({ key: o.key, text: (o.text || '').trim(), image: o.image || '' })),
     correctKeys: practiceForm.value.correctKeys,
     isMultiple: practiceForm.value.isMultiple
   }
@@ -740,8 +797,9 @@ function editPracticeQuestion(q) {
   editingPracticeId.value = q.id
   practiceForm.value = {
     stem: q.stem,
+    stemImage: q.stemImage || '',
     isMultiple: q.isMultiple === 1,
-    options: (q.options || []).map(o => ({ key: o.key, text: o.text })),
+    options: (q.options || []).map(o => ({ key: o.key, text: o.text || '', image: o.image || '' })),
     correctKeys: [...(q.correctKeys || [])]
   }
 }
@@ -932,6 +990,13 @@ async function removeCourseware(cw) {
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; flex-shrink: 0;
 }
+.option-main { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.option-image-row { display: flex; align-items: center; gap: 8px; }
+.stem-image-upload { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.stem-image-preview { max-width: 200px; max-height: 120px; border-radius: 8px; border: 1px solid #E2E8F0; }
+.option-image-preview { max-width: 90px; max-height: 60px; border-radius: 6px; border: 1px solid #E2E8F0; }
+.practice-q-stem-img { max-width: 200px; max-height: 120px; border-radius: 8px; border: 1px solid #E2E8F0; margin: 6px 0; display: block; }
+.pq-opt-img { max-width: 60px; max-height: 40px; border-radius: 4px; margin-left: 4px; vertical-align: middle; }
 .practice-form { background: #FAFBFF; padding: 16px; border-radius: 10px; }
 .practice-q-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F1F5F9; }
 .practice-q-info { flex: 1; }

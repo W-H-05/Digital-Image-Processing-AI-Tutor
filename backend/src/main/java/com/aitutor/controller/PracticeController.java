@@ -1,6 +1,7 @@
 package com.aitutor.controller;
 
 import com.aitutor.common.R;
+import com.aitutor.config.AppProperties;
 import com.aitutor.entity.PracticeQuestion;
 import com.aitutor.entity.PracticeRecord;
 import com.aitutor.mapper.PracticeQuestionMapper;
@@ -11,7 +12,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -25,7 +33,32 @@ public class PracticeController {
 
     private final PracticeQuestionMapper questionMapper;
     private final PracticeRecordMapper recordMapper;
+    private final AppProperties appProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    /** 教师上传练习图片（题干图/选项图），返回可访问的 URL 路径 */
+    @PostMapping("/teacher/practice/upload-image")
+    public R<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
+        AuthUtil.requireTeacher();
+        if (file == null || file.isEmpty()) return R.fail(400, "请选择图片");
+        try {
+            String original = file.getOriginalFilename() == null ? "image" : file.getOriginalFilename();
+            String ext = "";
+            int dot = original.lastIndexOf('.');
+            if (dot >= 0) ext = original.substring(dot);
+            String dateDir = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String stored = UUID.randomUUID().toString().replace("-", "") + ext;
+            Path dir = Paths.get(appProperties.getUploadDir(), "practice", dateDir);
+            Files.createDirectories(dir);
+            file.transferTo(dir.resolve(stored).toAbsolutePath());
+            Map<String, String> result = new HashMap<>();
+            result.put("url", "/uploads/practice/" + dateDir + "/" + stored);
+            return R.ok(result);
+        } catch (Exception e) {
+            log.error("练习图片上传失败", e);
+            return R.fail(500, "图片上传失败");
+        }
+    }
 
     // ==================== 教师端题目管理 ====================
 
@@ -42,6 +75,7 @@ public class PracticeController {
             m.put("lessonPackId", q.getLessonPackId());
             m.put("questionNo", q.getQuestionNo());
             m.put("stem", q.getStem());
+            m.put("stemImage", q.getStemImage());
             m.put("options", parseOptions(q.getOptionsJson()));
             m.put("correctKeys", parseKeys(q.getCorrectKeys()));
             m.put("isMultiple", q.getIsMultiple());
@@ -61,6 +95,7 @@ public class PracticeController {
                 new QueryWrapper<PracticeQuestion>().eq("lesson_pack_id", packId).orderByDesc("question_no").last("limit 1"));
         q.setQuestionNo(last == null || last.getQuestionNo() == null ? 1 : last.getQuestionNo() + 1);
         q.setStem(String.valueOf(body.getOrDefault("stem", "")));
+        if (body.get("stemImage") != null) q.setStemImage(String.valueOf(body.get("stemImage")));
         List<?> options = (List<?>) body.getOrDefault("options", new ArrayList<>());
         q.setOptionsJson(writeJson(options));
         List<?> keys = (List<?>) body.getOrDefault("correctKeys", new ArrayList<>());
@@ -77,6 +112,7 @@ public class PracticeController {
         PracticeQuestion q = questionMapper.selectById(id);
         if (q == null) return R.fail(404, "题目不存在");
         if (body.containsKey("stem")) q.setStem(String.valueOf(body.get("stem")));
+        if (body.containsKey("stemImage")) q.setStemImage(String.valueOf(body.get("stemImage")));
         if (body.containsKey("options")) q.setOptionsJson(writeJson((List<?>) body.get("options")));
         if (body.containsKey("correctKeys")) {
             List<?> keys = (List<?>) body.get("correctKeys");
@@ -122,6 +158,7 @@ public class PracticeController {
             m.put("id", q.getId());
             m.put("questionNo", q.getQuestionNo());
             m.put("stem", q.getStem());
+            m.put("stemImage", q.getStemImage());
             m.put("options", parseOptions(q.getOptionsJson()));
             m.put("isMultiple", q.getIsMultiple());
             result.add(m);

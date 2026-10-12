@@ -15,6 +15,7 @@ public class PracticeQuestion {
     private Long lessonPackId;
     private Integer questionNo;
     private String stem;
+    private String stemImage;
     private String optionsJson;
     private String correctKeys;
     private Integer isMultiple;

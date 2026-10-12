@@ -50,6 +50,7 @@
         <el-tag v-else type="info" size="small">单选题</el-tag>
       </div>
       <div class="pl-stem">{{ current.stem }}</div>
+      <img v-if="current.stemImage" :src="current.stemImage" class="pl-stem-img" />
 
       <div class="pl-options">
         <div
@@ -60,7 +61,10 @@
           @click="chooseOption(opt.key)"
         >
           <span class="pl-opt-key">{{ opt.key }}</span>
-          <span class="pl-opt-text">{{ opt.text }}</span>
+          <div class="pl-opt-content">
+            <span v-if="opt.text" class="pl-opt-text">{{ opt.text }}</span>
+            <img v-if="opt.image" :src="opt.image" class="pl-opt-img" />
+          </div>
           <span v-if="isRevealed && showCorrect && isCorrectKey(opt.key)" class="pl-opt-mark correct-mark">✓</span>
           <span v-else-if="isRevealed && !showCorrect && isWrongPicked(opt.key)" class="pl-opt-mark wrong-mark">✗</span>
         </div>
@@ -409,6 +413,7 @@ load()
 .pl-question-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
 .pl-q-no { font-weight: 700; color: #4F46E5; }
 .pl-stem { font-size: 16px; font-weight: 500; color: #1F2937; line-height: 1.7; margin-bottom: 18px; }
+.pl-stem-img { width: 100%; height: auto; border-radius: 10px; border: 1px solid #E2E8F0; margin-bottom: 16px; display: block; }
 
 .pl-options { display: flex; flex-direction: column; gap: 10px; }
 .pl-option {
@@ -430,11 +435,14 @@ load()
   background: #F1F5F9; color: #475569;
   display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 14px; flex-shrink: 0;
+  align-self: flex-start;
 }
 .pl-option.selected .pl-opt-key { background: #4F46E5; color: #fff; }
 .pl-option.correct .pl-opt-key { background: #10B981; color: #fff; }
 .pl-option.wrong .pl-opt-key { background: #EF4444; color: #fff; }
-.pl-opt-text { font-size: 15px; color: #374151; flex: 1; }
+.pl-opt-content { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.pl-opt-text { font-size: 15px; color: #374151; }
+.pl-opt-img { width: 100%; height: auto; border-radius: 6px; border: 1px solid #E2E8F0; display: block; }
 .pl-opt-mark {
   width: 26px; height: 26px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;

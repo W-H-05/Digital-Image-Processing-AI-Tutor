@@ -102,6 +102,9 @@ export const listPracticeForStudent = (packId) => request.get(`/lesson-packs/${p
 export const answerPractice = (id, keys) => request.post(`/practice/${id}/answer`, { keys })
 export const recordPractice = (id, data) => request.post(`/practice/${id}/record`, data)
 export const practiceStats = (packId) => request.get(`/teacher/practice/${packId}/stats`)
+export const uploadPracticeImage = (formData) => request.post('/teacher/practice/upload-image', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' }
+})
 
 // 学情看板
 export const dashboardOverview = (params) => request.get('/dashboard/overview', { params })
