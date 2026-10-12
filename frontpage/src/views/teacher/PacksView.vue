@@ -298,7 +298,7 @@
                 accept="image/*"
                 :on-change="(f) => onStemImage(f)"
               >
-                <el-button size="small">🖼 上传题干图片</el-button>
+                <el-button size="small">上传题干图片</el-button>
               </el-upload>
               <img v-if="practiceForm.stemImage" :src="practiceForm.stemImage" class="stem-image-preview" />
               <el-button v-if="practiceForm.stemImage" size="small" type="danger" link @click="practiceForm.stemImage = ''">移除</el-button>
@@ -323,7 +323,7 @@
                       accept="image/*"
                       :on-change="(f) => onOptionImage(opt, f)"
                     >
-                      <el-button size="small">🖼 图</el-button>
+                      <el-button size="small">上传选项图片</el-button>
                     </el-upload>
                     <img v-if="opt.image" :src="opt.image" class="option-image-preview" />
                     <el-button v-if="opt.image" size="small" type="danger" link @click="opt.image = ''">移除</el-button>
